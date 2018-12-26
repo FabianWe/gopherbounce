@@ -40,6 +40,10 @@ type BcryptConf struct {
 	Cost int
 }
 
+func (conf *BcryptConf) Copy() *BcryptConf {
+	return &BcryptConf{Cost: conf.Cost}
+}
+
 var DefaultBcryptConf = &BcryptConf{bcrypt.DefaultCost}
 
 type BcryptHasher struct {
@@ -48,7 +52,7 @@ type BcryptHasher struct {
 
 func NewBcryptHasher(conf *BcryptConf) BcryptHasher {
 	if conf == nil {
-		conf = DefaultBcryptConf
+		conf = DefaultBcryptConf.Copy()
 	}
 	return BcryptHasher{conf}
 }
@@ -65,12 +69,30 @@ func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 	return &BcryptConf{Cost: cost}, nil
 }
 
-type ScryptHasher struct {
+type ScryptConf struct {
 	N, R, P, KeyLen int
 }
 
-func NewScryptHasher() *ScryptHasher {
-	return &ScryptHasher{N: 32768, R: 8, P: 1, KeyLen: 32}
+func (conf *ScryptConf) Copy() *ScryptConf {
+	return &ScryptConf{
+		N:      conf.N,
+		R:      conf.R,
+		P:      conf.P,
+		KeyLen: conf.KeyLen,
+	}
+}
+
+var DefaultScryptConf = &ScryptConf{N: 32768, R: 8, P: 1, KeyLen: 32}
+
+type ScryptHasher struct {
+	*ScryptConf
+}
+
+func NewScryptHasher(conf *ScryptConf) *ScryptHasher {
+	if conf == nil {
+		conf = DefaultScryptConf
+	}
+	return &ScryptHasher{conf}
 }
 
 func (h *ScryptHasher) Generate(password string) ([]byte, error) {
@@ -151,9 +173,9 @@ func (h *Argon2idHasher) Encode(hash []byte) (string, error) {
 }
 
 var (
-	Bcrypt        = NewBcryptHasher(DefaultBcryptConf)
-	Scrypt        = NewScryptHasher()
+	Bcrypt        = NewBcryptHasher(nil)
+	Scrypt        = NewScryptHasher(nil)
 	Argon2i       = NewArgon2iHasher()
 	Argon2id      = NewArgon2idHasher()
-	DefaultHasher = NewBcryptHasher(DefaultBcryptConf)
+	DefaultHasher = NewBcryptHasher(nil)
 )
