@@ -196,3 +196,38 @@ func GuessValidatorFunc(hashed []byte) ValidatorFunc {
 		return val.Compare(hashed, password)
 	}
 }
+
+const (
+	// MaxIntLength is the maximal length that we assume to an integer encoding
+	// as a string can have.
+	MaxIntLength = 20
+)
+
+// BcryptHashSize returns the hash size of bcrypt hashes.
+func BcryptHashSize() int {
+	return 60
+}
+
+// SycryptHashSize returns the maximal hash size of a scrypt hash with a key and
+// salt of with KeyLen bytes. The length is the maximal length, not the actual
+// length.
+func SycryptHashSize(keyLen int) int {
+	maxEncLength := DefaultEncoding.Encoding.EncodedLen(keyLen)
+	return 4 + 4 + 3 * MaxIntLength + 2 * maxEncLength
+}
+
+// Argon2iHashSize returns the maximal hash size of a argon2i hash with a key
+// and salt of with KeyLen bytes. The length is the maximal length, not the
+// actual length.
+func Argon2iHashSize(keyLen int) int {
+	maxEncLength := DefaultEncoding.Encoding.EncodedLen(keyLen)
+	return 9 + 5 + 4 * MaxIntLength + 2 * maxEncLength
+}
+
+// Argon2idHashSize returns the maximal hash size of a argon2id hash with a key
+// and salt of with KeyLen bytes. The length is the maximal length, not the
+// actual length.
+func Argon2idHashSize(keyLen int) int {
+	// +1 because of additional d in algorithm id
+	return Argon2iHashSize(keyLen) + 1
+}

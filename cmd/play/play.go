@@ -24,6 +24,8 @@ import (
 )
 
 func main() {
+	fmt.Println(gopherbounce.Argon2idHashSize(32))
+	fmt.Println(gopherbounce.Argon2idHashSize(64))
 	x := readPassword()
 
 	var hashers []gopherbounce.Hasher = []gopherbounce.Hasher{gopherbounce.Bcrypt, gopherbounce.Scrypt,
