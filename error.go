@@ -14,29 +14,12 @@
 
 package gopherbounce
 
-import (
-	"crypto/rand"
-	"io"
-)
+type SyntaxError string
 
-func GenSalt(numBytes int) ([]byte, error) {
-	salt := make([]byte, numBytes)
-	_, err := io.ReadFull(rand.Reader, salt)
-	return salt, err
+func NewSyntaxError(cause string) SyntaxError {
+	return SyntaxError(cause)
 }
 
-type Hasher interface {
-	Generate(password string) ([]byte, error)
+func (err SyntaxError) Error() string {
+	return "Syntax error: " + string(err)
 }
-
-type HashGenerator interface {
-	Key(password string, salt []byte) ([]byte, error)
-}
-
-var (
-	Bcrypt        = NewBcryptHasher(nil)
-	Scrypt        = NewScryptHasher(nil)
-	Argon2i       = NewArgon2iHasher()
-	Argon2id      = NewArgon2idHasher()
-	DefaultHasher = NewBcryptHasher(nil)
-)

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/FabianWe/gopherbounce"
-	"golang.org/x/crypto/argon2"
 )
 
 func main() {
@@ -26,13 +25,9 @@ func test(hasher gopherbounce.Hasher) {
 }
 
 func foo() {
-	salt, saltErr := gopherbounce.GenSalt(32)
-	if saltErr != nil {
-		panic(saltErr)
+	hash, err := gopherbounce.Scrypt.Generate("Foo")
+	if err != nil {
+		panic(err)
 	}
-	key := argon2.Key([]byte("foo"), salt, 3, 32*1024, 4, 32)
-	fmt.Println(string(gopherbounce.Base64Encode(key)))
-	fmt.Println(strings.Repeat("-", 10))
-	key = argon2.Key([]byte("foo"), salt, 3, 32*1024, 4, 32)
-	fmt.Println(string(gopherbounce.Base64Encode(key)))
+	gopherbounce.ParseScryptConf(hash)
 }
