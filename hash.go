@@ -22,60 +22,127 @@ import (
 )
 
 const (
+	// BcryptPrefix is the algorithm prefix in the hash encoding.
 	BcryptPrefix = "$2a$"
+
+	// ScryptPrefix is the algorithm prefix in the hash encoding.
 	ScryptPrefix = "$4s$"
+
+	// Argon2iPrefix is the algorithm prefix in the hash encoding.
 	Argon2iPrefix = "$argon2i$"
+
+	// Argon2idPrefix is the algorithm prefix in the hash encoding.
 	Argon2idPrefix = "$argon2id$"
 )
 
+// GenSalt computes a cryptographically secure salt given the number of bytes.
 func GenSalt(numBytes int) ([]byte, error) {
 	salt := make([]byte, numBytes)
 	_, err := io.ReadFull(rand.Reader, salt)
 	return salt, err
 }
 
+// Hasher is the general interface for creating hashed versions of passwords.
+// The returned encoded string contains all information required for parsing
+// the parameters of the key function
+// (like https://openwall.info/wiki/john/sample-hashes).
 type Hasher interface {
 	Generate(password string) ([]byte, error)
 }
 
+// HashGenerator is an interface describing all algorithms that can be used
+// to directly create a hashed version of a password. The difference between
+// HashGenerator and Hasher is that Hasher returns a formatted string whereas
+// HashGenerator returns the raw generated key.
 type HashGenerator interface {
 	Key(password string, salt []byte) ([]byte, error)
 }
 
+// Validator is an interface that provides a method to compare a hashed version
+// of a password with a prorivde clear text version. Any error returned should
+// be considered as an authentication fail. Only a nil return value.indicates
+// success.
+//
+// There are some predefined errors that can help you to narrow the cause.
+// But not all implementaions are required to use these errors.
+// Special errors include: Syntax error if the hases version can't be parsed.
+// VersionError: IF the version used to created the hashes value is not
+// compatible with the implemented algorithm.
+// AlgIDError: The provided algorithm prefix does not match the prefix required
+// by the validator.
+// PasswordMismatchError: If the clear text version is not the password used to
+// create the hash.
+//
+// Note that a valdiator implementation provides validation for a specific
+// hashing algorithm, like one implementation for bcrypt, scrypt etc.
+// If you want to validate a hashed version without knowing the used algorithm
+// use GuessValidator or GuessValidatorFunc.
 type Validator interface {
 	Compare(hashed []byte, password string) error
 }
 
+// CompareHashes uses a constant time compare algorithm to compare to key
+// hashes. Constant time compare functions are important or otherwise attackers
+// might infer knowledge about the real password.
 func CompareHashes(x, y []byte) bool {
 	return subtle.ConstantTimeCompare(x, y) == 1
 }
 
 var (
+	// Bcrypt is a bcrypt Hasher.
 	Bcrypt        = NewBcryptHasher(nil)
+
+	// Scrypt is a scrypt Hasher.
 	Scrypt        = NewScryptHasher(nil)
+
+	// Argon2i is a argon2 Hasher using the Argon2i key function.
 	Argon2i       = NewArgon2iHasher(nil)
+
+	// Argon2id is a argon2 Hasher using the Argon2id key function.
+	// Argon2id is considered more secure than Argon2i.
 	Argon2id      = NewArgon2idHasher(nil)
+
+	// DefaultHasher ia a rather secure Hasher that should be safe to be used
+	// by most applications. At the moment it's  Argon2id with the default
+	// paramters.
 	DefaultHasher = NewArgon2idHasher(nil)
 )
 
 var (
+	// BcryptVal is a Validator for bcrypt encoded hashes.
 	BcryptVal = BcryptValidator{}
+
+	// ScryptVal is a Validator for scrypt encoded hashes.
 	ScryptVal = ScryptValidator{}
+
+	// Argon2iVal is a Validator for argon2i encoded hashes.
 	Argon2iVal = Argon2iValidator{}
+
+	// Argon2idVal is a Validator for argon2id encoded hashes.
 	Argon2idVal = Argon2idValidator{}
 )
 
 //go:generate stringer -type=HashAlg
 
+// HashAlg is a type used to enumerate all implemented algorithms.
 type HashAlg int
 
 const (
+	// BcryptAlg stands for the bcrypt algorithm.
 	BcryptAlg HashAlg = iota
+
+	// ScryptAlg stands for the scrypt algorithm.
 	ScryptAlg
+
+	// Argon2iAlg stands for the argon2i algorithm.
 	Argon2iAlg
+
+	// Argon2idAlg stands for the argon2id algorithm.
 	Argon2idAlg
 )
 
+// GuessAlg returns the algorithm used to create the specified hashed version.
+// If the algorithm is unknown it returns -1.
 func GuessAlg(hashed []byte) HashAlg {
 	s := string(hashed)
 	switch {
@@ -92,6 +159,10 @@ func GuessAlg(hashed []byte) HashAlg {
 	}
 }
 
+// GuessValidator returns a validator for the hashes version.
+// That is a clear text password can be compared with the hashed version using
+// the validator.
+// If the algorithm is unknown it returns nil.
 func GuessValidator(hashed []byte) Validator {
 	switch GuessAlg(hashed) {
 	case BcryptAlg:
@@ -107,8 +178,15 @@ func GuessValidator(hashed []byte) Validator {
 	}
 }
 
+// ValidatorFunc is a function that returns an error is specified in the
+// Validator interface. GuessValidatorFunc can be used to create a ValidatorFunc
+// from the hashed version of a password.
 type ValidatorFunc func(password string) error
 
+// GuessValidatorFunc guesses the algorithm based on the hashes version.
+// The returned error is compatible with the Validator interface specification.
+// In addition it might return an UnknownAlgError if the algorithm cannot be
+// guessed from the hashed version.
 func GuessValidatorFunc(hashed []byte) ValidatorFunc {
 	val := GuessValidator(hashed)
 	return func(password string) error {
