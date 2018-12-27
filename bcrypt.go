@@ -14,7 +14,11 @@
 
 package gopherbounce
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 // BcryptConf contains all parameters for bcrypt.
 type BcryptConf struct {
@@ -26,8 +30,13 @@ func (conf *BcryptConf) Copy() *BcryptConf {
 	return &BcryptConf{Cost: conf.Cost}
 }
 
+// String returns a human-readable string reprensetation.
+func (conf *BcryptConf) String() string {
+	return fmt.Sprintf("&{Cost: %d}", conf.Cost)
+}
+
 // DefaultBcryptConf is the default configuration for bcrypt.
-var DefaultBcryptConf = &BcryptConf{bcrypt.DefaultCost}
+var DefaultBcryptConf = &BcryptConf{Cost: 12}
 
 // BcryptHasher is a Hasher using bcrypt.
 type BcryptHasher struct {

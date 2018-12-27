@@ -96,7 +96,13 @@ func main() {
 		}
 		fmt.Println(strings.Repeat("-", 20))
 	}
-
+	hasher := gopherbounce.NewScryptHasher(nil)
+	hasher.KeyLen = 64
+	foo, bar := hasher.Generate("foo")
+	if bar != nil {
+		panic(bar)
+	}
+	fmt.Println(string(foo))
 }
 
 func readPassword() string {

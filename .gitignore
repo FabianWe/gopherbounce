@@ -1,6 +1,7 @@
 # Binary
 /play
 /quick
+/tune
 
 # Binaries for programs and plugins
 *.exe
