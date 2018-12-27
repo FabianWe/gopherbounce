@@ -57,6 +57,7 @@ This section describes the current default parameter values of the hashers. The 
 
 ### bcrypt
 Read details in the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) documentation.
+
 | Parameter | Default | Note                             |
 |-----------|---------|----------------------------------|
 | Cost      | 12      | Must be a value between 4 and 31 |
