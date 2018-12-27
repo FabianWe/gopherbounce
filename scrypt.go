@@ -38,6 +38,7 @@ func (conf *ScryptConf) Copy() *ScryptConf {
 var DefaultScryptConf = &ScryptConf{N: 32768, R: 8, P: 1, KeyLen: 32}
 
 type ScryptData struct {
+	*ScryptConf
 	// encoded with base64
 	Salt, Key       string
 	RawSalt, RawKey []byte
@@ -124,13 +125,6 @@ func (c scryptComponents) getKey() string {
 	return c[6]
 }
 
-func (c scryptComponents) keyLen() int {
-	// base64 key len is not correct, it returns the max length, not the actual
-	// length
-	key := c.getKey()
-	return DefaultEncoding.Encoding.DecodedLen(len(key))
-}
-
 func (c scryptComponents) rawKey() ([]byte, error) {
 	fmt.Println("DECODE KEY", c.getKey())
 	dec, decErr := Base64Decode([]byte(c.getKey()))
@@ -141,7 +135,7 @@ func (c scryptComponents) rawKey() ([]byte, error) {
 }
 
 func (c scryptComponents) getConfig() (*ScryptConf, error) {
-	var n, r, p, keyLen int
+	var n, r, p int
 	var err error
 	n, err = c.getN()
 	if err != nil {
@@ -155,17 +149,21 @@ func (c scryptComponents) getConfig() (*ScryptConf, error) {
 	if err != nil {
 		return nil, err
 	}
-	keyLen = c.keyLen()
 	res := &ScryptConf{
-		N:      n,
-		R:      r,
-		P:      p,
-		KeyLen: keyLen,
+		N: n,
+		R: r,
+		P: p,
+		// KeyLen not computed here, is computed from the actual data
+		KeyLen: -1,
 	}
 	return res, nil
 }
 
 func (c scryptComponents) getData() (*ScryptData, error) {
+	config, configErr := c.getConfig()
+	if configErr != nil {
+		return nil, configErr
+	}
 	salt, key := c.getSalt(), c.getKey()
 	rawSalt, saltErr := c.rawSalt()
 	if saltErr != nil {
@@ -175,22 +173,15 @@ func (c scryptComponents) getData() (*ScryptData, error) {
 	if keyErr != nil {
 		return nil, keyErr
 	}
+	config.KeyLen = len(rawKey)
 	result := ScryptData{
-		Salt:    salt,
-		Key:     key,
-		RawSalt: rawSalt,
-		RawKey:  rawKey,
+		ScryptConf: config,
+		Salt:       salt,
+		Key:        key,
+		RawSalt:    rawSalt,
+		RawKey:     rawKey,
 	}
 	return &result, nil
-}
-
-func ParseScryptConf(hashed []byte) (*ScryptConf, error) {
-	s := string(hashed)
-	split, splitErr := parseScryptComponents(s)
-	if splitErr != nil {
-		return nil, splitErr
-	}
-	return split.getConfig()
 }
 
 func ParseScryptData(hashed []byte) (*ScryptData, error) {
@@ -199,22 +190,9 @@ func ParseScryptData(hashed []byte) (*ScryptData, error) {
 	if splitErr != nil {
 		return nil, splitErr
 	}
-	return split.getData()
-}
-
-func ParseScrypt(hashed []byte) (*ScryptConf, *ScryptData, error) {
-	s := string(hashed)
-	split, splitErr := parseScryptComponents(s)
-	if splitErr != nil {
-		return nil, nil, splitErr
-	}
-	conf, confErr := split.getConfig()
-	if confErr != nil {
-		return nil, nil, confErr
-	}
 	data, dataErr := split.getData()
 	if dataErr != nil {
-		return nil, nil, dataErr
+		return nil, dataErr
 	}
-	return conf, data, nil
+	return data, nil
 }

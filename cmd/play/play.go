@@ -29,11 +29,11 @@ func foo() {
 	if err != nil {
 		panic(err)
 	}
-	conf, data, parseErr := gopherbounce.ParseScrypt(hash)
+	data, parseErr := gopherbounce.ParseScryptData(hash)
 	if parseErr != nil {
 		panic(parseErr)
 	}
-	fmt.Println("conf:", conf)
+	fmt.Println("conf:", data.ScryptConf)
 	fmt.Println("data:", data)
-	fmt.Println("Real key len:", len(data.RawKey))
+	// fmt.Println("Real key len:", len(data.RawKey))
 }
