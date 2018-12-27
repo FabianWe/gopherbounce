@@ -328,7 +328,9 @@ func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 	return &result, nil
 }
 
-func (h Argon2iHasher) Compare(hashed []byte, password string) error {
+type Argon2iValidator struct {}
+
+func (v Argon2iValidator) Compare(hashed []byte, password string) error {
 	// parse configuration from stored entry
 	data, dataErr := ParseArgon2iData(hashed)
 	if dataErr != nil {
@@ -347,7 +349,9 @@ func (h Argon2iHasher) Compare(hashed []byte, password string) error {
 	return NewPasswordMismatchError()
 }
 
-func (h Argon2idHasher) Compare(hashed []byte, password string) error {
+type Argon2idValidator struct {}
+
+func (v Argon2idValidator) Compare(hashed []byte, password string) error {
 	// parse configuration from stored entry
 	data, dataErr := ParseArgon2idData(hashed)
 	if dataErr != nil {

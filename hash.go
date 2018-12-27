@@ -29,8 +29,6 @@ func GenSalt(numBytes int) ([]byte, error) {
 
 type Hasher interface {
 	Generate(password string) ([]byte, error)
-	// TODO remove compare, use new comparator interface
-	Compare(hashed []byte, password string) error
 }
 
 type HashGenerator interface {
@@ -51,6 +49,13 @@ var (
 	Argon2i       = NewArgon2iHasher(nil)
 	Argon2id      = NewArgon2idHasher(nil)
 	DefaultHasher = NewArgon2idHasher(nil)
+)
+
+var (
+	BcryptVal = BcryptValidator{}
+	ScryptVal = ScryptValidator{}
+	Argon2iVal = Argon2iValidator{}
+	Argon2idVal = Argon2idValidator{}
 )
 
 //go:generate stringer -type=HashAlg
@@ -80,30 +85,29 @@ func GuessAlg(hashed []byte) HashAlg {
 	}
 }
 
-type CompareFunction func(password string) error
+func GuessValidator(hashed []byte) Validator {
+	switch GuessAlg(hashed) {
+	case BcryptAlg:
+		return BcryptVal
+	case ScryptAlg:
+		return ScryptVal
+	case Argon2iAlg:
+		return Argon2iVal
+	case Argon2idAlg:
+		return Argon2idVal
+	default:
+		return nil
+	}
+}
 
-// TODO think about structure... calling compare feels weird... we should separate
-// the hasher from the compare unit
+type ValidatorFunc func(password string) error
 
-// func GuessHasher(hashed []byte) CompareFunction {
-// 	var hasher Hasher
-// 	var parseErr error
-// 	switch GuessAlg(hashed) {
-// 	case BcryptAlg:
-// 		var conf *BcryptConf
-// 		conf, parseErr = ParseBcryptConf(hashed)
-//
-// 	case ScryptAlg:
-// 	case Argon2iAlg:
-// 	case Argon2idAlg:
-// 	}
-// 	return func(password string) error {
-// 		if hasher == nil {
-// 			return NewUnknownAlgError()
-// 		}
-// 		if parseErr != nil {
-// 			return parseErr
-// 		}
-// 		return hasher.Compare(hashed, password)
-// 	}
-// }
+func GuessValidatorFunc(hashed []byte) ValidatorFunc {
+	val := GuessValidator(hashed)
+	return func(password string) error {
+		if val == nil {
+			return NewUnknownAlgError()
+		}
+		return val.Compare(hashed, password)
+	}
+}

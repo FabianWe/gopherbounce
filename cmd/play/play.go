@@ -29,6 +29,11 @@ func main() {
 	var hashers []gopherbounce.Hasher = []gopherbounce.Hasher{gopherbounce.Bcrypt, gopherbounce.Scrypt,
 		gopherbounce.Argon2i, gopherbounce.Argon2id}
 
+	var validators []gopherbounce.Validator = []gopherbounce.Validator{
+		gopherbounce.BcryptValidator{}, gopherbounce.ScryptValidator{},
+		gopherbounce.Argon2iValidator{}, gopherbounce.Argon2idValidator{},
+	}
+
 	hashes := make([][]byte, len(hashers))
 
 	for i, hasher := range hashers {
@@ -51,11 +56,11 @@ func main() {
 	fmt.Println("Now verify your password with all hashers!")
 	check := readPassword()
 	for i := 0; i < len(hashers); i++ {
-		hasher := hashers[i]
-		fmt.Println("Next hasher is", reflect.TypeOf(hasher))
+		validator := validators[i]
+		fmt.Println("Next validator is", reflect.TypeOf(validator))
 		hash := hashes[i]
 		start := time.Now()
-		compare := hasher.Compare(hash, check)
+		compare := validator.Compare(hash, check)
 		execTime := time.Since(start)
 		fmt.Println("Comparison took", execTime)
 		if compare == nil {
@@ -71,6 +76,23 @@ func main() {
 			default:
 				fmt.Println("Something else went wrong...", v.Error())
 			}
+		}
+		fmt.Println(strings.Repeat("-", 20))
+	}
+
+	fmt.Printf("\n%s\n", strings.Repeat("#", 20))
+
+	fmt.Println("Now verify password with method detection")
+	for _, hash := range hashes {
+		start := time.Now()
+		f := gopherbounce.GuessValidatorFunc(hash)
+		compare := f(check)
+		execTime := time.Since(start)
+		fmt.Println("Comparison took", execTime)
+		if compare == nil {
+			fmt.Println("Passwords match")
+		} else {
+			fmt.Println("Passwords don't match")
 		}
 		fmt.Println(strings.Repeat("-", 20))
 	}
