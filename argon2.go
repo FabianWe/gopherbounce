@@ -24,6 +24,8 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// Argon2Conf contains all parameters for argon2, it is used by argon2i and
+// argon2id.
 type Argon2Conf struct {
 	Time    uint32
 	Memory  uint32
@@ -31,6 +33,7 @@ type Argon2Conf struct {
 	KeyLen  uint32
 }
 
+// Copy returns a copy of a config.
 func (conf *Argon2Conf) Copy() *Argon2Conf {
 	return &Argon2Conf{
 		Time:    conf.Time,
@@ -40,24 +43,31 @@ func (conf *Argon2Conf) Copy() *Argon2Conf {
 	}
 }
 
+// Argon2iConf contains all parameters for argon2i.
 type Argon2iConf struct {
 	*Argon2Conf
 }
 
+// Argon2iData stores in addition to a config also the salt and key, both
+// base64 encoded (Salt and Key) as well as the raw version (decoded from
+// Salt and Key).
 type Argon2iData struct {
 	*Argon2iConf
 	Salt, Key       string
 	RawSalt, RawKey []byte
 }
 
+// Copy returns a copy of a config.
 func (conf *Argon2iConf) Copy() *Argon2iConf {
 	return &Argon2iConf{conf.Argon2Conf.Copy()}
 }
 
+// Argon2iHasher is a Hasher using argon2i.
 type Argon2iHasher struct {
 	*Argon2iConf
 }
 
+// NewArgon2iHasher returns a new NewArgon2iHasher with the given parameter.
 func NewArgon2iHasher(conf *Argon2iConf) *Argon2iHasher {
 	if conf == nil {
 		numCPUs := runtime.NumCPU()
@@ -73,15 +83,19 @@ func NewArgon2iHasher(conf *Argon2iConf) *Argon2iHasher {
 	return &Argon2iHasher{conf}
 }
 
+// Copy returns a copy of the hasher.
 func (h *Argon2iHasher) Copy() *Argon2iHasher {
 	return &Argon2iHasher{h.Argon2iConf.Copy()}
 }
 
+// Key returns the argon2i key of the password given the clear text password,
+// salt and parameters from the config of the Hasher.
 func (h *Argon2iHasher) Key(password string, salt []byte) ([]byte, error) {
 	key := argon2.Key([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
 	return key, nil
 }
 
+// Generate implements the Hasher interface.
 func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 	salt, saltErr := GenSalt(int(h.KeyLen))
 	if saltErr != nil {
@@ -97,10 +111,14 @@ func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 	return []byte(result), nil
 }
 
+// Argon2idConf contains all parameters for argon2id.
 type Argon2idConf struct {
 	*Argon2Conf
 }
 
+// Argon2idData stores in addition to a config also the salt and key, both
+// base64 encoded (Salt and Key) as well as the raw version (decoded from
+// Salt and Key).
 type Argon2idData struct {
 	*Argon2idConf
 	// encoded with base64
@@ -108,14 +126,17 @@ type Argon2idData struct {
 	RawSalt, RawKey []byte
 }
 
+// Copy returns a copy of a config.
 func (conf *Argon2idConf) Copy() *Argon2idConf {
 	return &Argon2idConf{conf.Argon2Conf.Copy()}
 }
 
+// Argon2idHasher is a Hasher using argon2id.
 type Argon2idHasher struct {
 	*Argon2idConf
 }
 
+// NewArgon2idHasher returns a new NewArgon2idHasher with the given parameter.
 func NewArgon2idHasher(conf *Argon2idConf) *Argon2idHasher {
 	if conf == nil {
 		numCPUs := runtime.NumCPU()
@@ -131,15 +152,19 @@ func NewArgon2idHasher(conf *Argon2idConf) *Argon2idHasher {
 	return &Argon2idHasher{conf}
 }
 
+// Copy returns a copy of the hasher.
 func (h *Argon2idHasher) Copy() *Argon2idHasher {
 	return &Argon2idHasher{h.Argon2idConf.Copy()}
 }
 
+// Key returns the argon2id key of the password given the clear text password,
+// salt and parameters from the config of the Hasher.
 func (h *Argon2idHasher) Key(password string, salt []byte) ([]byte, error) {
 	key := argon2.IDKey([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
 	return key, nil
 }
 
+// Generate implements the Hasher interface.
 func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	salt, saltErr := GenSalt(int(h.KeyLen))
 	if saltErr != nil {
@@ -154,6 +179,8 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	return []byte(result), nil
 }
 
+// argon2Components is used for parsing argon2 hash strings. The entries are
+// splitted by the separator ($).
 type argon2Components []string
 
 func parseArgon2Components(s string) (argon2Components, error) {
@@ -258,6 +285,7 @@ func (c argon2Components) getConfig() (*Argon2Conf, error) {
 	return res, nil
 }
 
+// ParseArgon2iData parses argon2i data from the hashes version.
 func ParseArgon2iData(hashed []byte) (*Argon2iData, error) {
 	s := string(hashed)
 	split, splitErr := parseArgon2Components(s)
@@ -293,6 +321,7 @@ func ParseArgon2iData(hashed []byte) (*Argon2iData, error) {
 	return &result, nil
 }
 
+// ParseArgon2idData parses argon2i data from the hashes version.
 func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 	s := string(hashed)
 	split, splitErr := parseArgon2Components(s)
@@ -328,8 +357,11 @@ func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 	return &result, nil
 }
 
+// Argon2iValidator implements Validator for argon2i hashes.
 type Argon2iValidator struct {}
 
+
+// Compare implements the Validator interface for argon2i hashes.
 func (v Argon2iValidator) Compare(hashed []byte, password string) error {
 	// parse configuration from stored entry
 	data, dataErr := ParseArgon2iData(hashed)
@@ -349,8 +381,10 @@ func (v Argon2iValidator) Compare(hashed []byte, password string) error {
 	return NewPasswordMismatchError()
 }
 
+// Argon2idValidator implements Validator for argon2id hashes.
 type Argon2idValidator struct {}
 
+// Compare implements the Validator interface for argon2id hashes.
 func (v Argon2idValidator) Compare(hashed []byte, password string) error {
 	// parse configuration from stored entry
 	data, dataErr := ParseArgon2idData(hashed)
