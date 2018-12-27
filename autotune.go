@@ -21,7 +21,12 @@ import (
   "golang.org/x/crypto/bcrypt"
 )
 
-var dummyPassword = "foobar-eggs-bacon-42"
+const (
+  dummyPassword = "foobar-eggs-bacon-42"
+  defaultPasses = 2
+  defaultNumber = 10
+)
+
 
 func average(f func() error, passes, number int) (time.Duration , error) {
   currentMin, err := averageSingle(f, number)
@@ -68,7 +73,7 @@ func TuneBcrypt(duration time.Duration) (*BcryptConf, time.Duration, error) {
       _, err := hasher.Generate(dummyPassword)
       return err
     }
-    avg, avgErr := average(f, 2, 10)
+    avg, avgErr := average(f, defaultPasses, defaultNumber)
     if avgErr != nil {
       return nil, 0, avgErr
     }
@@ -92,7 +97,7 @@ func TuneScrypt(duration time.Duration) (*ScryptConf, time.Duration, error) {
       _, err := hasher.Generate(dummyPassword)
       return err
     }
-    avg, avgErr := average(f, 2, 10)
+    avg, avgErr := average(f, defaultPasses, defaultNumber)
     if avgErr != nil {
       return nil, 0, avgErr
     }
@@ -120,7 +125,7 @@ func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
       _, err := hasher.Generate(dummyPassword)
       return err
     }
-    avg, avgErr := average(f, 2, 10)
+    avg, avgErr := average(f, defaultPasses, defaultNumber)
     if avgErr != nil {
       return nil, 0, avgErr
     }
@@ -149,7 +154,7 @@ func TuneArgon2id(duration time.Duration) (*Argon2idConf, time.Duration, error) 
       _, err := hasher.Generate(dummyPassword)
       return err
     }
-    avg, avgErr := average(f, 2, 10)
+    avg, avgErr := average(f, defaultPasses, defaultNumber)
     if avgErr != nil {
       return nil, 0, avgErr
     }
