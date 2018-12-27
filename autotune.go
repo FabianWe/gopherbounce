@@ -135,3 +135,32 @@ func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
   }
   return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
 }
+
+// TuneArgon2id runs argon2id with increasing time values until an average
+// runtime of at least duration is reached. Do not use this function to
+// automatically compute your configuration, it is not safe enough! Run it,
+// check the result and draw your own conclusions.
+func TuneArgon2id(duration time.Duration) (*Argon2idConf, time.Duration, error) {
+  hasher := NewArgon2idHasher(nil)
+  var t uint32 = 3
+  for t >= 3 {
+    hasher.Time = t
+    f := func() error {
+      _, err := hasher.Generate(dummyPassword)
+      return err
+    }
+    avg, avgErr := average(f, 2, 10)
+    if avgErr != nil {
+      return nil, 0, avgErr
+    }
+    fmt.Printf("With t = %d, average duration: %v\n", t, avg)
+    if avg >= duration {
+      conf := hasher.Argon2idConf.Copy()
+      // no need to do that but that's more clear
+      conf.Time = t
+      return conf, avg, nil
+    }
+    t++
+  }
+  return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
+}
