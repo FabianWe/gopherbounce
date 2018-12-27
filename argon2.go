@@ -125,7 +125,7 @@ func NewArgon2idHasher(conf *Argon2idConf) *Argon2idHasher {
 		}
 		asUint := uint8(numCPUs)
 		conf = &Argon2idConf{
-			Argon2Conf: &Argon2Conf{Time: 1, Memory: 64 * 1024, Threads: asUint, KeyLen: 32},
+			Argon2Conf: &Argon2Conf{Time: 3, Memory: 64 * 1024, Threads: asUint, KeyLen: 32},
 		}
 	}
 	return &Argon2idHasher{conf}
