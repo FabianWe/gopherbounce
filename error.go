@@ -69,3 +69,13 @@ func NewPasswordMismatchError() PasswordMismatchError {
 func (err PasswordMismatchError) Error() string {
 	return "gopherbounce: hashed password is not the hash of the given password"
 }
+
+type UnknownAlgError struct{}
+
+func NewUnknownAlgError() UnknownAlgError {
+	return UnknownAlgError{}
+}
+
+func (err UnknownAlgError) Error() string {
+	return "Unknown algorithm, can't compare password"
+}

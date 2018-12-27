@@ -18,6 +18,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"io"
+	"strings"
 )
 
 func GenSalt(numBytes int) ([]byte, error) {
@@ -28,11 +29,16 @@ func GenSalt(numBytes int) ([]byte, error) {
 
 type Hasher interface {
 	Generate(password string) ([]byte, error)
+	// TODO remove compare, use new comparator interface
 	Compare(hashed []byte, password string) error
 }
 
 type HashGenerator interface {
 	Key(password string, salt []byte) ([]byte, error)
+}
+
+type Validator interface {
+	Compare(hashed []byte, password string) error
 }
 
 func CompareHashes(x, y []byte) bool {
@@ -44,5 +50,60 @@ var (
 	Scrypt        = NewScryptHasher(nil)
 	Argon2i       = NewArgon2iHasher(nil)
 	Argon2id      = NewArgon2idHasher(nil)
-	DefaultHasher = NewBcryptHasher(nil)
+	DefaultHasher = NewArgon2idHasher(nil)
 )
+
+//go:generate stringer -type=HashAlg
+
+type HashAlg int
+
+const (
+	BcryptAlg HashAlg = iota
+	ScryptAlg
+	Argon2iAlg
+	Argon2idAlg
+)
+
+func GuessAlg(hashed []byte) HashAlg {
+	s := string(hashed)
+	switch {
+	case strings.HasPrefix(s, "$2a$"):
+		return BcryptAlg
+	case strings.HasPrefix(s, "$4s$"):
+		return ScryptAlg
+	case strings.HasPrefix(s, "$argon2i$"):
+		return Argon2iAlg
+	case strings.HasPrefix(s, "$argon2id$"):
+		return Argon2idAlg
+	default:
+		return HashAlg(-1)
+	}
+}
+
+type CompareFunction func(password string) error
+
+// TODO think about structure... calling compare feels weird... we should separate
+// the hasher from the compare unit
+
+// func GuessHasher(hashed []byte) CompareFunction {
+// 	var hasher Hasher
+// 	var parseErr error
+// 	switch GuessAlg(hashed) {
+// 	case BcryptAlg:
+// 		var conf *BcryptConf
+// 		conf, parseErr = ParseBcryptConf(hashed)
+//
+// 	case ScryptAlg:
+// 	case Argon2iAlg:
+// 	case Argon2idAlg:
+// 	}
+// 	return func(password string) error {
+// 		if hasher == nil {
+// 			return NewUnknownAlgError()
+// 		}
+// 		if parseErr != nil {
+// 			return parseErr
+// 		}
+// 		return hasher.Compare(hashed, password)
+// 	}
+// }
