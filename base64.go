@@ -47,6 +47,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // TODO remove this padding stuff, just makes everything more complicated
+// and use strings...
 
 package gopherbounce
 
@@ -84,9 +85,11 @@ func (enc *Base64Encoding) Base64Encode(src []byte) []byte {
 }
 
 func (enc *Base64Encoding) Base64Decode(src []byte) ([]byte, error) {
-	numOfEquals := 4 - (len(src) % 4)
-	for i := 0; i < numOfEquals; i++ {
-		src = append(src, '=')
+	if enc.RemovePadding {
+		numOfEquals := 4 - (len(src) % 4)
+		for i := 0; i < numOfEquals; i++ {
+			src = append(src, '=')
+		}
 	}
 
 	dst := make([]byte, enc.Encoding.DecodedLen(len(src)))

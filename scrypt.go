@@ -92,6 +92,7 @@ func (c scryptComponents) getSalt() string {
 }
 
 func (c scryptComponents) rawSalt() ([]byte, error) {
+	fmt.Println("DECODE SALT", c.getSalt())
 	dec, decErr := Base64Decode([]byte(c.getSalt()))
 	if decErr != nil {
 		return nil, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid base64 " + decErr.Error())
@@ -124,11 +125,14 @@ func (c scryptComponents) getKey() string {
 }
 
 func (c scryptComponents) keyLen() int {
+	// base64 key len is not correct, it returns the max length, not the actual
+	// length
 	key := c.getKey()
 	return DefaultEncoding.Encoding.DecodedLen(len(key))
 }
 
 func (c scryptComponents) rawKey() ([]byte, error) {
+	fmt.Println("DECODE KEY", c.getKey())
 	dec, decErr := Base64Decode([]byte(c.getKey()))
 	if decErr != nil {
 		return nil, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid base64 " + decErr.Error())
