@@ -35,6 +35,10 @@ hasher.KeyLen = 64
 For all parameters check the code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce). A list of default parameters can be found below.
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
 
+## Which has function should I use?
+bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id the default in this package though, I like how argon2id scales even for further hardware improvements.
+So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely.
+
 ## Validating hashes
 The easiest way to validate hashes is to use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator). They both accept the hashed version of a password and return either a function that can compare passwords with the hashed entry or a [Validator](https://godoc.org/github.com/FabianWe/gopherbounce#Validator) object. See the documentation for more details.
 
