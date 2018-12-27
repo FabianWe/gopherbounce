@@ -64,8 +64,11 @@ func averageSingle(f func() error, number int) (time.Duration , error){
 // of at least duration is reached. Do not use this function to automatically
 // compute your configuration, it is not safe enough! Run it, check the result
 // and draw your own conclusions.
-func TuneBcrypt(duration time.Duration) (*BcryptConf, time.Duration, error) {
-  hasher := NewBcryptHasher(nil)
+func TuneBcrypt(base *BcryptConf, duration time.Duration) (*BcryptConf, time.Duration, error) {
+  if base != nil {
+    base = base.Copy()
+  }
+  hasher := NewBcryptHasher(base)
   for cost := bcrypt.MinCost; cost <= bcrypt.MaxCost; cost++ {
     hasher.Cost = cost
     // run average
@@ -88,8 +91,11 @@ func TuneBcrypt(duration time.Duration) (*BcryptConf, time.Duration, error) {
 // of at least duration is reached. Do not use this function to automatically
 // compute your configuration, it is not safe enough! Run it, check the result
 // and draw your own conclusions.
-func TuneScrypt(duration time.Duration) (*ScryptConf, time.Duration, error) {
-  hasher := NewScryptHasher(nil)
+func TuneScrypt(base *ScryptConf, duration time.Duration) (*ScryptConf, time.Duration, error) {
+  if base != nil {
+    base = base.Copy()
+  }
+  hasher := NewScryptHasher(base)
   n := 32768
   for n > 0 {
     hasher.N = n
@@ -116,8 +122,11 @@ func TuneScrypt(duration time.Duration) (*ScryptConf, time.Duration, error) {
 // of at least duration is reached. Do not use this function to automatically
 // compute your configuration, it is not safe enough! Run it, check the result
 // and draw your own conclusions.
-func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
-  hasher := NewArgon2iHasher(nil)
+func TuneArgon2i(base *Argon2iConf, duration time.Duration) (*Argon2iConf, time.Duration, error) {
+  if base != nil {
+    base = base.Copy()
+  }
+  hasher := NewArgon2iHasher(base)
   var t uint32 = 3
   for t >= 3 {
     hasher.Time = t
@@ -144,8 +153,11 @@ func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
 // runtime of at least duration is reached. Do not use this function to
 // automatically compute your configuration, it is not safe enough! Run it,
 // check the result and draw your own conclusions.
-func TuneArgon2id(duration time.Duration) (*Argon2idConf, time.Duration, error) {
-  hasher := NewArgon2idHasher(nil)
+func TuneArgon2id(base *Argon2idConf, duration time.Duration) (*Argon2idConf, time.Duration, error) {
+  if base != nil {
+    base = base.Copy()
+  }
+  hasher := NewArgon2idHasher(base)
   var t uint32 = 3
   for t >= 3 {
     hasher.Time = t

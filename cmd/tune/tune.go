@@ -59,7 +59,7 @@ func main() {
 }
 
 func tuneBcrypt(duration time.Duration) {
-  conf, avg, tuneErr := gopherbounce.TuneBcrypt(duration)
+  conf, avg, tuneErr := gopherbounce.TuneBcrypt(nil, duration)
   if tuneErr != nil {
     fmt.Println("Error tuning bcrypt:", tuneErr.Error())
     os.Exit(1)
@@ -69,7 +69,7 @@ func tuneBcrypt(duration time.Duration) {
 }
 
 func tuneScrypt(duration time.Duration) {
-  conf, avg, tuneErr := gopherbounce.TuneScrypt(duration)
+  conf, avg, tuneErr := gopherbounce.TuneScrypt(nil, duration)
   if tuneErr != nil {
     fmt.Println("Error tuning scrypt:", tuneErr.Error())
     os.Exit(1)
@@ -79,7 +79,7 @@ func tuneScrypt(duration time.Duration) {
 }
 
 func tuneArgon2i(duration time.Duration) {
-  conf, avg, tuneErr := gopherbounce.TuneArgon2i(duration)
+  conf, avg, tuneErr := gopherbounce.TuneArgon2i(nil, duration)
   if tuneErr != nil {
     fmt.Println("Error tuning argon2i:", tuneErr.Error())
     os.Exit(1)
@@ -89,7 +89,7 @@ func tuneArgon2i(duration time.Duration) {
 }
 
 func tuneArgon2id(duration time.Duration) {
-  conf, avg, tuneErr := gopherbounce.TuneArgon2id(duration)
+  conf, avg, tuneErr := gopherbounce.TuneArgon2id(nil, duration)
   if tuneErr != nil {
     fmt.Println("Error tuning argon2id:", tuneErr.Error())
     os.Exit(1)
