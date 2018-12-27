@@ -78,3 +78,30 @@ func TuneBcrypt(duration time.Duration) (*BcryptConf, time.Duration, error) {
   }
   return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
 }
+
+// TuneScrypt runs scrypt with increasing N values until an average runtime
+// of at least duration is reached. Do not use this function to automatically
+// compute your configuration, it is not safe enough! Run it, check the result
+// and draw your own conclusions.
+func TuneScrypt(duration time.Duration) (*ScryptConf, time.Duration, error) {
+  hasher := NewScryptHasher(nil)
+  n := 32768
+  for n > 0 {
+    hasher.N = n
+    f := func() error {
+      _, err := hasher.Generate(dummyPassword)
+      return err
+    }
+    avg, avgErr := average(f, 2, 10)
+    if avgErr != nil {
+      return nil, 0, avgErr
+    }
+    if avg >= duration {
+      conf := hasher.ScryptConf.Copy()
+      conf.N = n
+      return conf, avg, nil
+    }
+    n *= 2
+  }
+  return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
+}

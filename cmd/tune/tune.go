@@ -41,6 +41,8 @@ func main() {
   switch strings.ToLower(os.Args[1]) {
   case "bcrypt":
     tuneBcrypt(duration)
+  case "scrypt":
+    tuneScrypt(duration)
   default:
     fmt.Printf("Invalid algorithm \"%s\"\n", os.Args[1])
     fmt.Println("Valid algorithms are")
@@ -56,5 +58,15 @@ func tuneBcrypt(duration time.Duration) {
     os.Exit(1)
   }
   fmt.Println("bcrypt tuning computed the following config:", conf)
+  fmt.Println("Average with this cost is", avg)
+}
+
+func tuneScrypt(duration time.Duration) {
+  conf, avg, tuneErr := gopherbounce.TuneScrypt(duration)
+  if tuneErr != nil {
+    fmt.Println("Error tuning scrypt:", tuneErr.Error())
+    os.Exit(1)
+  }
+  fmt.Println("scrypt tuning computed the following config:", conf)
   fmt.Println("Average with this cost is", avg)
 }

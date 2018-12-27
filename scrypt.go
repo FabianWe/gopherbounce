@@ -37,8 +37,13 @@ func (conf *ScryptConf) Copy() *ScryptConf {
 	}
 }
 
+// String returns a human-readable string reprensetation.
+func (conf *ScryptConf) String() string {
+	return fmt.Sprintf("&{N: %d, R: %d, P: %d, KeyLen: %d}", conf.N, conf.R, conf.P, conf.KeyLen)
+}
+
 // DefaultScryptConf is the default configuration for scrypt.
-var DefaultScryptConf = &ScryptConf{N: 32768, R: 8, P: 1, KeyLen: 32}
+var DefaultScryptConf = &ScryptConf{N: 131072, R: 8, P: 1, KeyLen: 32}
 
 // ScryptData stores in addition to a config also the salt and key, both
 // base64 encoded (Salt and Key) as well as the raw version (decoded from
