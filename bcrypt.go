@@ -37,6 +37,10 @@ func NewBcryptHasher(conf *BcryptConf) BcryptHasher {
 	return BcryptHasher{conf}
 }
 
+func (h BcryptHasher) Copy() BcryptHasher {
+	return BcryptHasher{h.BcryptConf.Copy()}
+}
+
 func (h BcryptHasher) Generate(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), h.Cost)
 }

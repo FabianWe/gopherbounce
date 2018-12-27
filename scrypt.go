@@ -55,6 +55,10 @@ func NewScryptHasher(conf *ScryptConf) *ScryptHasher {
 	return &ScryptHasher{conf}
 }
 
+func (h *ScryptHasher) Copy() *ScryptHasher {
+	return &ScryptHasher{h.ScryptConf.Copy()}
+}
+
 func (h *ScryptHasher) Key(password string, salt []byte) ([]byte, error) {
 	return scrypt.Key([]byte(password), salt, h.N, h.R, h.P, h.KeyLen)
 }
@@ -92,21 +96,20 @@ func (c scryptComponents) getSalt() string {
 	return c[2]
 }
 
-func (c scryptComponents) rawSalt() ([]byte, error) {
-	fmt.Println("DECODE SALT", c.getSalt())
-	dec, decErr := Base64Decode([]byte(c.getSalt()))
-	if decErr != nil {
-		return nil, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid base64 " + decErr.Error())
-	}
-	return dec, nil
-}
-
 func (c scryptComponents) parseInt(s string) (int, error) {
 	asInt, err := strconv.Atoi(s)
 	if err != nil {
 		return -1, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid integer " + err.Error())
 	}
 	return asInt, nil
+}
+
+func (c scryptComponents) decode(s string) ([]byte, error) {
+	dec, decErr := Base64Decode([]byte(s))
+	if decErr != nil {
+		return nil, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid base64 " + decErr.Error())
+	}
+	return dec, nil
 }
 
 func (c scryptComponents) getN() (int, error) {
@@ -125,13 +128,12 @@ func (c scryptComponents) getKey() string {
 	return c[6]
 }
 
+func (c scryptComponents) rawSalt() ([]byte, error) {
+	return c.decode(c.getSalt())
+}
+
 func (c scryptComponents) rawKey() ([]byte, error) {
-	fmt.Println("DECODE KEY", c.getKey())
-	dec, decErr := Base64Decode([]byte(c.getKey()))
-	if decErr != nil {
-		return nil, NewSyntaxError("gopherbounce/scrypt: Invalid format string: Invalid base64 " + decErr.Error())
-	}
-	return dec, nil
+	return c.decode(c.getKey())
 }
 
 func (c scryptComponents) getConfig() (*ScryptConf, error) {
@@ -189,6 +191,9 @@ func ParseScryptData(hashed []byte) (*ScryptData, error) {
 	split, splitErr := parseScryptComponents(s)
 	if splitErr != nil {
 		return nil, splitErr
+	}
+	if split.getVersion() != "4s" {
+		return nil, NewVersionError("gopherbounce/scrypt", "4s", split.getVersion())
 	}
 	data, dataErr := split.getData()
 	if dataErr != nil {

@@ -14,6 +14,8 @@
 
 package gopherbounce
 
+import "fmt"
+
 type SyntaxError string
 
 func NewSyntaxError(cause string) SyntaxError {
@@ -22,4 +24,38 @@ func NewSyntaxError(cause string) SyntaxError {
 
 func (err SyntaxError) Error() string {
 	return "Syntax error: " + string(err)
+}
+
+type VersionError struct {
+	Prefix        string
+	Expected, Got string
+}
+
+func NewVersionError(prefix, expected, got string) VersionError {
+	return VersionError{
+		Prefix:   prefix,
+		Expected: expected,
+		Got:      got,
+	}
+}
+
+func (err VersionError) Error() string {
+	return fmt.Sprintf("%s: Invalid version, expected version %s, got %s", err.Prefix, err.Expected, err.Got)
+}
+
+type AlgIDError struct {
+	Prefix        string
+	Expected, Got string
+}
+
+func NewAlgIDError(prefix, expected, got string) AlgIDError {
+	return AlgIDError{
+		Prefix:   prefix,
+		Expected: expected,
+		Got:      got,
+	}
+}
+
+func (err AlgIDError) Error() string {
+	return fmt.Sprintf("%s: Invalid algorithm identifier, expected %s, got %s", err.Prefix, err.Expected, err.Got)
 }

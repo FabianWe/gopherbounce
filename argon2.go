@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -42,6 +44,12 @@ type Argon2iConf struct {
 	*Argon2Conf
 }
 
+type Argon2iData struct {
+	*Argon2iConf
+	Salt, Key       string
+	RawSalt, RawKey []byte
+}
+
 func (conf *Argon2iConf) Copy() *Argon2iConf {
 	return &Argon2iConf{conf.Argon2Conf.Copy()}
 }
@@ -63,6 +71,10 @@ func NewArgon2iHasher(conf *Argon2iConf) *Argon2iHasher {
 		}
 	}
 	return &Argon2iHasher{conf}
+}
+
+func (h *Argon2iHasher) Copy() *Argon2iHasher {
+	return &Argon2iHasher{h.Argon2iConf.Copy()}
 }
 
 func (h *Argon2iHasher) Key(password string, salt []byte) ([]byte, error) {
@@ -89,6 +101,13 @@ type Argon2idConf struct {
 	*Argon2Conf
 }
 
+type Argon2idData struct {
+	*Argon2idConf
+	// encoded with base64
+	Salt, Key       string
+	RawSalt, RawKey []byte
+}
+
 func (conf *Argon2idConf) Copy() *Argon2idConf {
 	return &Argon2idConf{conf.Argon2Conf.Copy()}
 }
@@ -112,6 +131,10 @@ func NewArgon2idHasher(conf *Argon2idConf) *Argon2idHasher {
 	return &Argon2idHasher{conf}
 }
 
+func (h *Argon2idHasher) Copy() *Argon2idHasher {
+	return &Argon2idHasher{h.Argon2idConf.Copy()}
+}
+
 func (h *Argon2idHasher) Key(password string, salt []byte) ([]byte, error) {
 	key := argon2.IDKey([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
 	return key, nil
@@ -129,4 +152,178 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
 	result := fmt.Sprintf("$argon2id$%d$%d$%d$%d$%s$%s", argon2.Version, h.Memory, h.Time, h.Threads, saltEnc, keyEnc)
 	return []byte(result), nil
+}
+
+type argon2Components []string
+
+func parseArgon2Components(s string) (argon2Components, error) {
+	split := strings.Split(s, "$")
+	if len(split) != 8 {
+		return nil, NewSyntaxError("gopherbounce/argon2: Invalid format string (invalid number of separators)")
+	}
+	return split, nil
+}
+
+func (c argon2Components) getAlgorithm() string {
+	return c[1]
+}
+
+func (c argon2Components) getVersion() string {
+	return c[2]
+}
+
+func (c argon2Components) parseUint(s string, bitSize int) (uint64, error) {
+	asUint, err := strconv.ParseUint(s, 10, bitSize)
+	if err != nil {
+		return math.MaxUint64, NewSyntaxError("gopherbounce/argon2: Invalid format string: Invalid integer " + err.Error())
+	}
+	return asUint, nil
+}
+
+func (c argon2Components) parseUint32(s string) (uint32, error) {
+	parsed, err := c.parseUint(s, 32)
+	if err != nil {
+		return math.MaxUint32, err
+	}
+	return uint32(parsed), nil
+}
+
+func (c argon2Components) parseUint8(s string) (uint8, error) {
+	parsed, err := c.parseUint(s, 8)
+	if err != nil {
+		return math.MaxUint8, err
+	}
+	return uint8(parsed), nil
+}
+
+func (c argon2Components) getMemory() (uint32, error) {
+	return c.parseUint32(c[3])
+}
+
+func (c argon2Components) getTime() (uint32, error) {
+	return c.parseUint32(c[4])
+}
+
+func (c argon2Components) getThreads() (uint8, error) {
+	return c.parseUint8(c[5])
+}
+
+func (c argon2Components) getSalt() string {
+	return c[6]
+}
+
+func (c argon2Components) getKey() string {
+	return c[7]
+}
+
+func (c argon2Components) decode(s string) ([]byte, error) {
+	dec, decErr := Base64Decode([]byte(s))
+	if decErr != nil {
+		return nil, NewSyntaxError("gopherbounce/argon2: Invalid format string: Invalid base64 " + decErr.Error())
+	}
+	return dec, nil
+}
+
+func (c argon2Components) rawSalt() ([]byte, error) {
+	return c.decode(c.getSalt())
+}
+
+func (c argon2Components) rawKey() ([]byte, error) {
+	return c.decode(c.getKey())
+}
+
+func (c argon2Components) getConfig() (*Argon2Conf, error) {
+	var t, m uint32
+	var p uint8
+	var err error
+	t, err = c.getTime()
+	if err != nil {
+		return nil, err
+	}
+	m, err = c.getMemory()
+	if err != nil {
+		return nil, err
+	}
+	p, err = c.getThreads()
+	if err != nil {
+		return nil, err
+	}
+	res := &Argon2Conf{
+		Time:    t,
+		Memory:  m,
+		Threads: p,
+		// Not computed here
+		KeyLen: 0,
+	}
+	return res, nil
+}
+
+func ParseArgon2iData(hashed []byte) (*Argon2iData, error) {
+	s := string(hashed)
+	split, splitErr := parseArgon2Components(s)
+	if splitErr != nil {
+		return nil, splitErr
+	}
+	if split.getAlgorithm() != "argon2i" {
+		return nil, NewAlgIDError("gopherbounce/argon2", "argon2i", split.getAlgorithm())
+	}
+	conf, confErr := split.getConfig()
+	if confErr != nil {
+		return nil, confErr
+	}
+
+	salt, key := split.getSalt(), split.getKey()
+	rawSalt, saltErr := split.rawSalt()
+	if saltErr != nil {
+		return nil, saltErr
+	}
+	rawKey, keyErr := split.rawKey()
+	if keyErr != nil {
+		return nil, keyErr
+	}
+	conf.KeyLen = uint32(len(rawKey))
+	innerConf := &Argon2iConf{conf}
+	result := Argon2iData{
+		Argon2iConf: innerConf,
+		Salt:        salt,
+		Key:         key,
+		RawSalt:     rawSalt,
+		RawKey:      rawKey,
+	}
+	return &result, nil
+}
+
+func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
+	s := string(hashed)
+	split, splitErr := parseArgon2Components(s)
+	if splitErr != nil {
+		return nil, splitErr
+	}
+	if split.getAlgorithm() != "argon2id" {
+		return nil, NewAlgIDError("gopherbounce/argon2", "argon2id", split.getAlgorithm())
+	}
+	conf, confErr := split.getConfig()
+	if confErr != nil {
+		return nil, confErr
+	}
+
+	salt, key := split.getSalt(), split.getKey()
+	rawSalt, saltErr := split.rawSalt()
+	if saltErr != nil {
+		return nil, saltErr
+	}
+	rawKey, keyErr := split.rawKey()
+	if keyErr != nil {
+		return nil, keyErr
+	}
+	conf.KeyLen = uint32(len(rawKey))
+	innerConf := &Argon2idConf{conf}
+	result := Argon2idData{
+		Argon2idConf: innerConf,
+		Salt:         salt,
+		Key:          key,
+		RawSalt:      rawSalt,
+		RawKey:       rawKey,
+	}
+	return &result, nil
 }
