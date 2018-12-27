@@ -52,3 +52,12 @@ func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 	}
 	return &BcryptConf{Cost: cost}, nil
 }
+
+func (h BcryptHasher) Compare(hashed []byte, password string) error {
+	// catch missmatch error from bcrypt library
+	err := bcrypt.CompareHashAndPassword(hashed, []byte(password))
+	if err == bcrypt.ErrMismatchedHashAndPassword {
+		return NewPasswordMismatchError()
+	}
+	return err
+}

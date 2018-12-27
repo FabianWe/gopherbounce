@@ -16,6 +16,7 @@ package gopherbounce
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"io"
 )
 
@@ -27,10 +28,15 @@ func GenSalt(numBytes int) ([]byte, error) {
 
 type Hasher interface {
 	Generate(password string) ([]byte, error)
+	Compare(hashed []byte, password string) error
 }
 
 type HashGenerator interface {
 	Key(password string, salt []byte) ([]byte, error)
+}
+
+func CompareHashes(x, y []byte) bool {
+	return subtle.ConstantTimeCompare(x, y) == 1
 }
 
 var (

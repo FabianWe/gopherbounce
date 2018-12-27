@@ -60,8 +60,12 @@ func (err AlgIDError) Error() string {
 	return fmt.Sprintf("%s: Invalid algorithm identifier, expected %s, got %s", err.Prefix, err.Expected, err.Got)
 }
 
-type PasswordMissmatchError struct{}
+type PasswordMismatchError struct{}
 
-func (err PasswordMissmatchError) Error() string {
+func NewPasswordMismatchError() PasswordMismatchError {
+	return PasswordMismatchError{}
+}
+
+func (err PasswordMismatchError) Error() string {
 	return "gopherbounce: hashed password is not the hash of the given password"
 }

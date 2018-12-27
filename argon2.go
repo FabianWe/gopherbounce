@@ -327,3 +327,41 @@ func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 	}
 	return &result, nil
 }
+
+func (h Argon2iHasher) Compare(hashed []byte, password string) error {
+	// parse configuration from stored entry
+	data, dataErr := ParseArgon2iData(hashed)
+	if dataErr != nil {
+		return dataErr
+	}
+	// create a hasher with the computed config
+	hasher := NewArgon2iHasher(data.Argon2iConf)
+	// compute key
+	key, keyErr := hasher.Key(password, data.RawSalt)
+	if keyErr != nil {
+		return keyErr
+	}
+	if CompareHashes(key, data.RawKey) {
+		return nil
+	}
+	return NewPasswordMismatchError()
+}
+
+func (h Argon2idHasher) Compare(hashed []byte, password string) error {
+	// parse configuration from stored entry
+	data, dataErr := ParseArgon2idData(hashed)
+	if dataErr != nil {
+		return dataErr
+	}
+	// create a hasher with the computed config
+	hasher := NewArgon2idHasher(data.Argon2idConf)
+	// compute key
+	key, keyErr := hasher.Key(password, data.RawSalt)
+	if keyErr != nil {
+		return keyErr
+	}
+	if CompareHashes(key, data.RawKey) {
+		return nil
+	}
+	return NewPasswordMismatchError()
+}

@@ -201,3 +201,22 @@ func ParseScryptData(hashed []byte) (*ScryptData, error) {
 	}
 	return data, nil
 }
+
+func (h ScryptHasher) Compare(hashed []byte, password string) error {
+	// parse configuration from stored entry
+	data, dataErr := ParseScryptData(hashed)
+	if dataErr != nil {
+		return dataErr
+	}
+	// create a hasher with the computed config
+	hasher := NewScryptHasher(data.ScryptConf)
+	// compute key
+	key, keyErr := hasher.Key(password, data.RawSalt)
+	if keyErr != nil {
+		return keyErr
+	}
+	if CompareHashes(key, data.RawKey) {
+		return nil
+	}
+	return NewPasswordMismatchError()
+}
