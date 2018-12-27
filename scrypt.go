@@ -22,10 +22,12 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+// ScryptConf contains all parameters for scrypt.
 type ScryptConf struct {
 	N, R, P, KeyLen int
 }
 
+// Copy returns a copy of a config.
 func (conf *ScryptConf) Copy() *ScryptConf {
 	return &ScryptConf{
 		N:      conf.N,
@@ -35,8 +37,12 @@ func (conf *ScryptConf) Copy() *ScryptConf {
 	}
 }
 
+// DefaultScryptConf is the default configuration for scrypt.
 var DefaultScryptConf = &ScryptConf{N: 32768, R: 8, P: 1, KeyLen: 32}
 
+// ScryptData stores in addition to a config also the salt and key, both
+// base64 encoded (Salt and Key) as well as the raw version (decoded from
+// Salt and Key).
 type ScryptData struct {
 	*ScryptConf
 	// encoded with base64
@@ -44,10 +50,12 @@ type ScryptData struct {
 	RawSalt, RawKey []byte
 }
 
+// ScryptHasher is a Hasher using scrypt.
 type ScryptHasher struct {
 	*ScryptConf
 }
 
+// NewScryptHasher returns a new ScryptHasher with the given parameters.
 func NewScryptHasher(conf *ScryptConf) *ScryptHasher {
 	if conf == nil {
 		conf = DefaultScryptConf
@@ -55,14 +63,18 @@ func NewScryptHasher(conf *ScryptConf) *ScryptHasher {
 	return &ScryptHasher{conf}
 }
 
+// Copy returns a copy of the hasher.
 func (h *ScryptHasher) Copy() *ScryptHasher {
 	return &ScryptHasher{h.ScryptConf.Copy()}
 }
 
+// Key returns the scrypt key of the password given the clear text password,
+// salt and parameters from the config of the Hasher.
 func (h *ScryptHasher) Key(password string, salt []byte) ([]byte, error) {
 	return scrypt.Key([]byte(password), salt, h.N, h.R, h.P, h.KeyLen)
 }
 
+// Generate implements the Hasher interface.
 func (h *ScryptHasher) Generate(password string) ([]byte, error) {
 	salt, saltErr := GenSalt(h.KeyLen)
 	if saltErr != nil {
@@ -78,6 +90,8 @@ func (h *ScryptHasher) Generate(password string) ([]byte, error) {
 	return []byte(result), nil
 }
 
+// scryptComponents is used for parsing a scrypt hash string. The entries are
+// splitted by the separator ($).
 type scryptComponents []string
 
 func parseScryptComponents(s string) (scryptComponents, error) {
@@ -186,6 +200,7 @@ func (c scryptComponents) getData() (*ScryptData, error) {
 	return &result, nil
 }
 
+// ParseScryptData parses scrypt data from the hashed version.
 func ParseScryptData(hashed []byte) (*ScryptData, error) {
 	s := string(hashed)
 	split, splitErr := parseScryptComponents(s)
@@ -202,8 +217,10 @@ func ParseScryptData(hashed []byte) (*ScryptData, error) {
 	return data, nil
 }
 
+// ScryptValidator implements Validator for scrypt hashes.
 type ScryptValidator struct {}
 
+// Compare implements the Validator interface for scrypt hashes.
 func (v ScryptValidator) Compare(hashed []byte, password string) error {
 	// parse configuration from stored entry
 	data, dataErr := ParseScryptData(hashed)

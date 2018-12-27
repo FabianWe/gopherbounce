@@ -16,20 +16,25 @@ package gopherbounce
 
 import "golang.org/x/crypto/bcrypt"
 
+// BcryptConf contains all parameters for bcrypt.
 type BcryptConf struct {
 	Cost int
 }
 
+// Copy returns a copy of a config.
 func (conf *BcryptConf) Copy() *BcryptConf {
 	return &BcryptConf{Cost: conf.Cost}
 }
 
+// DefaultBcryptConf is the default configuration for bcrypt.
 var DefaultBcryptConf = &BcryptConf{bcrypt.DefaultCost}
 
+// BcryptHasher is a Hasher using bcrypt.
 type BcryptHasher struct {
 	*BcryptConf
 }
 
+// NewBcryptHasher returns a new BcryptHasher with the given parameters.
 func NewBcryptHasher(conf *BcryptConf) BcryptHasher {
 	if conf == nil {
 		conf = DefaultBcryptConf.Copy()
@@ -37,14 +42,18 @@ func NewBcryptHasher(conf *BcryptConf) BcryptHasher {
 	return BcryptHasher{conf}
 }
 
+// Copy returns a copy of the hasher.
 func (h BcryptHasher) Copy() BcryptHasher {
 	return BcryptHasher{h.BcryptConf.Copy()}
 }
 
+// Generate implements the Hasher interface. All errors returned are from
+// golang.org/x/crypto/bcrypt.
 func (h BcryptHasher) Generate(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), h.Cost)
 }
 
+// ParseBcryptConf parses a configuration from a hashes version.
 func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 	cost, costErr := bcrypt.Cost(hashed)
 	if costErr != nil {
@@ -53,8 +62,10 @@ func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 	return &BcryptConf{Cost: cost}, nil
 }
 
+// BcryptValidator implements Validator for bcrypt hashes.
 type BcryptValidator struct {}
 
+// Compare implements the Validator interface for bcrypt hashes.
 func (v BcryptValidator) Compare(hashed []byte, password string) error {
 	// catch missmatch error from bcrypt library
 	err := bcrypt.CompareHashAndPassword(hashed, []byte(password))
