@@ -1,5 +1,6 @@
 # Binary
-play
+/play
+/quick
 
 # Binaries for programs and plugins
 *.exe
