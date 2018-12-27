@@ -24,9 +24,7 @@ import (
 )
 
 func main() {
-	fmt.Println(gopherbounce.Argon2idHashSize(32))
-	fmt.Println(gopherbounce.Argon2idHashSize(64))
-	x := readPassword()
+	password := readPassword()
 
 	var hashers []gopherbounce.Hasher = []gopherbounce.Hasher{gopherbounce.Bcrypt, gopherbounce.Scrypt,
 		gopherbounce.Argon2i, gopherbounce.Argon2id}
@@ -41,7 +39,7 @@ func main() {
 	for i, hasher := range hashers {
 		fmt.Println("Building hash with", reflect.TypeOf(hasher))
 		start := time.Now()
-		hash, err := hasher.Generate(x)
+		hash, err := hasher.Generate(password)
 		execTime := time.Since(start)
 		if err != nil {
 			fmt.Println("There was an error:", err.Error())
