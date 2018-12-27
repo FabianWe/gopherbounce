@@ -43,6 +43,12 @@ func (conf *Argon2Conf) Copy() *Argon2Conf {
 	}
 }
 
+// String returns a human-readable string reprensetation.
+func (conf *Argon2Conf) String() string {
+	return fmt.Sprintf("&{Time: %d, Memory: %d, Threads: %d, KeyLen: %d}",
+		conf.Time, conf.Memory, conf.Threads, conf.KeyLen)
+}
+
 // Argon2iConf contains all parameters for argon2i.
 type Argon2iConf struct {
 	*Argon2Conf
@@ -77,7 +83,7 @@ func NewArgon2iHasher(conf *Argon2iConf) *Argon2iHasher {
 		}
 		asUint := uint8(numCPUs)
 		conf = &Argon2iConf{
-			Argon2Conf: &Argon2Conf{Time: 3, Memory: 32 * 1024, Threads: asUint, KeyLen: 32},
+			Argon2Conf: &Argon2Conf{Time: 10, Memory: 64 * 1024, Threads: asUint, KeyLen: 32},
 		}
 	}
 	return &Argon2iHasher{conf}

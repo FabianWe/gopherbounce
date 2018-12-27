@@ -98,10 +98,40 @@ func TuneScrypt(duration time.Duration) (*ScryptConf, time.Duration, error) {
     }
     if avg >= duration {
       conf := hasher.ScryptConf.Copy()
+      // no need to do that but that's more clear
       conf.N = n
       return conf, avg, nil
     }
     n *= 2
+  }
+  return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
+}
+
+// TuneArgon2i runs argon2i with increasing time values until an average runtime
+// of at least duration is reached. Do not use this function to automatically
+// compute your configuration, it is not safe enough! Run it, check the result
+// and draw your own conclusions.
+func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
+  hasher := NewArgon2iHasher(nil)
+  var t uint32 = 3
+  for t >= 3 {
+    hasher.Time = t
+    f := func() error {
+      _, err := hasher.Generate(dummyPassword)
+      return err
+    }
+    avg, avgErr := average(f, 2, 10)
+    if avgErr != nil {
+      return nil, 0, avgErr
+    }
+    fmt.Printf("With t = %d, average duration: %v\n", t, avg)
+    if avg >= duration {
+      conf := hasher.Argon2iConf.Copy()
+      // no need to do that but that's more clear
+      conf.Time = t
+      return conf, avg, nil
+    }
+    t++
   }
   return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
 }
