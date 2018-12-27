@@ -57,6 +57,7 @@ This section describes the current default parameter values of the hashers. The 
 
 ### bcrypt
 Read details in the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) documentation.
+
 | Parameter | Default | Note                             |
 |-----------|---------|----------------------------------|
 | Cost      | 12      | Must be a value between 4 and 31 |
@@ -65,32 +66,38 @@ The cost parameter can be increased to make the computation more expensive. The 
 
 ### scrypt
 Read the details in the [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) documentation. More details can be found [here](https://blog.filippo.io/the-scrypt-parameters/).
+
 | Parameter | Default        | Note                        |
 |-----------|----------------|-----------------------------|
 | N         | 131072 (= 2¹⁷) | CPU / memory cost parameter |
 | R         | 8              | r * p < 2³⁰                 |
 | P         | 1              | r * p < 2³⁰                 |
 | KeyLen    | 32             |                             |
+
 N is the main CPU / memory cost parameter. The scrypt package documentation recommends N = 32768 (2¹⁵). However I've found that to small due to improved hardware, thus the default is 131072 (2¹⁷).
 
 ## Argon2i
 Read the details in the [argon2](https://godoc.org/golang.org/x/crypto/argon2) documentation.
+
 | Parameter | Default        | Note                  |
 |-----------|----------------|-----------------------|
 | Time      | 10             | CPU cost parameter    |
 | Memory    | 64*1024 ~64 MB | Memory in KiB         |
 | Threads   | Number of CPUs | Concurrency parameter |
 | KeyLen    | 32             |                       |
+
 The documentation suggests Time (t) = 3 and Memory (m) = 32 * 1024 ~32 MB, this is not enough in my opinion so both have been increased.
 
 ## Argon2id
 Read the details in the [argon2](https://godoc.org/golang.org/x/crypto/argon2) documentation.
+
 | Parameter | Default        | Note                  |
 |-----------|----------------|-----------------------|
 | Time      | 10             | CPU cost parameter    |
 | Memory    | 64*1024 ~64 MB | Memory in KiB         |
 | Threads   | Number of CPUs | Concurrency parameter |
 | KeyLen    | 32             |                       |
+
 The documentation suggests Time (t) = 1. Again this parameter has been increased.
 
 ### Auto tuning
