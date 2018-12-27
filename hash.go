@@ -21,6 +21,13 @@ import (
 	"strings"
 )
 
+const (
+	BcryptPrefix = "$2a$"
+	ScryptPrefix = "$4s$"
+	Argon2iPrefix = "$argon2i$"
+	Argon2idPrefix = "$argon2id$"
+)
+
 func GenSalt(numBytes int) ([]byte, error) {
 	salt := make([]byte, numBytes)
 	_, err := io.ReadFull(rand.Reader, salt)
@@ -72,13 +79,13 @@ const (
 func GuessAlg(hashed []byte) HashAlg {
 	s := string(hashed)
 	switch {
-	case strings.HasPrefix(s, "$2a$"):
+	case strings.HasPrefix(s, BcryptPrefix):
 		return BcryptAlg
-	case strings.HasPrefix(s, "$4s$"):
+	case strings.HasPrefix(s, ScryptPrefix):
 		return ScryptAlg
-	case strings.HasPrefix(s, "$argon2i$"):
+	case strings.HasPrefix(s, Argon2iPrefix):
 		return Argon2iAlg
-	case strings.HasPrefix(s, "$argon2id$"):
+	case strings.HasPrefix(s, Argon2idPrefix):
 		return Argon2idAlg
 	default:
 		return HashAlg(-1)
