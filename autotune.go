@@ -129,7 +129,6 @@ func TuneArgon2i(duration time.Duration) (*Argon2iConf, time.Duration, error) {
     if avgErr != nil {
       return nil, 0, avgErr
     }
-    fmt.Printf("With t = %d, average duration: %v\n", t, avg)
     if avg >= duration {
       conf := hasher.Argon2iConf.Copy()
       // no need to do that but that's more clear
@@ -158,7 +157,6 @@ func TuneArgon2id(duration time.Duration) (*Argon2idConf, time.Duration, error) 
     if avgErr != nil {
       return nil, 0, avgErr
     }
-    fmt.Printf("With t = %d, average duration: %v\n", t, avg)
     if avg >= duration {
       conf := hasher.Argon2idConf.Copy()
       // no need to do that but that's more clear
