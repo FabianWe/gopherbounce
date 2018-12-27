@@ -36,7 +36,7 @@ type HashGenerator interface {
 var (
 	Bcrypt        = NewBcryptHasher(nil)
 	Scrypt        = NewScryptHasher(nil)
-	Argon2i       = NewArgon2iHasher()
-	Argon2id      = NewArgon2idHasher()
+	Argon2i       = NewArgon2iHasher(nil)
+	Argon2id      = NewArgon2idHasher(nil)
 	DefaultHasher = NewBcryptHasher(nil)
 )

@@ -22,21 +22,52 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type Argon2iHasher struct {
+type Argon2Conf struct {
 	Time    uint32
 	Memory  uint32
 	Threads uint8
 	KeyLen  uint32
 }
 
-func NewArgon2iHasher() *Argon2iHasher {
-	numCPUs := runtime.NumCPU()
-	// just to be  absolutely sure we have some sensible value
-	if numCPUs <= 0 || numCPUs >= math.MaxUint8 {
-		numCPUs = 4
+func (conf *Argon2Conf) Copy() *Argon2Conf {
+	return &Argon2Conf{
+		Time:    conf.Time,
+		Memory:  conf.Memory,
+		Threads: conf.Threads,
+		KeyLen:  conf.KeyLen,
 	}
-	asUint := uint8(numCPUs)
-	return &Argon2iHasher{Time: 3, Memory: 32 * 1024, Threads: asUint, KeyLen: 32}
+}
+
+type Argon2iConf struct {
+	*Argon2Conf
+}
+
+func (conf *Argon2iConf) Copy() *Argon2iConf {
+	return &Argon2iConf{conf.Argon2Conf.Copy()}
+}
+
+type Argon2iHasher struct {
+	*Argon2iConf
+}
+
+func NewArgon2iHasher(conf *Argon2iConf) *Argon2iHasher {
+	if conf == nil {
+		numCPUs := runtime.NumCPU()
+		// just to be  absolutely sure we have some sensible value
+		if numCPUs <= 0 || numCPUs >= math.MaxUint8 {
+			numCPUs = 4
+		}
+		asUint := uint8(numCPUs)
+		conf = &Argon2iConf{
+			Argon2Conf: &Argon2Conf{Time: 3, Memory: 32 * 1024, Threads: asUint, KeyLen: 32},
+		}
+	}
+	return &Argon2iHasher{conf}
+}
+
+func (h *Argon2iHasher) Key(password string, salt []byte) ([]byte, error) {
+	key := argon2.Key([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
+	return key, nil
 }
 
 func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
@@ -44,28 +75,46 @@ func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 	if saltErr != nil {
 		return nil, saltErr
 	}
-	key := argon2.Key([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
+	key, keyErr := h.Key(password, salt)
+	if keyErr != nil {
+		return nil, keyErr
+	}
 	// encode salt and key
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
 	result := fmt.Sprintf("$argon2i$%d$%d$%d$%d$%s$%s", argon2.Version, h.Memory, h.Time, h.Threads, saltEnc, keyEnc)
 	return []byte(result), nil
 }
 
-type Argon2idHasher struct {
-	Time    uint32
-	Memory  uint32
-	Threads uint8
-	KeyLen  uint32
+type Argon2idConf struct {
+	*Argon2Conf
 }
 
-func NewArgon2idHasher() *Argon2idHasher {
-	numCPUs := runtime.NumCPU()
-	// just to be  absolutely sure we have some sensible value
-	if numCPUs <= 0 || numCPUs >= math.MaxUint8 {
-		numCPUs = 4
+func (conf *Argon2idConf) Copy() *Argon2idConf {
+	return &Argon2idConf{conf.Argon2Conf.Copy()}
+}
+
+type Argon2idHasher struct {
+	*Argon2idConf
+}
+
+func NewArgon2idHasher(conf *Argon2idConf) *Argon2idHasher {
+	if conf == nil {
+		numCPUs := runtime.NumCPU()
+		// just to be  absolutely sure we have some sensible value
+		if numCPUs <= 0 || numCPUs >= math.MaxUint8 {
+			numCPUs = 4
+		}
+		asUint := uint8(numCPUs)
+		conf = &Argon2idConf{
+			Argon2Conf: &Argon2Conf{Time: 1, Memory: 64 * 1024, Threads: asUint, KeyLen: 32},
+		}
 	}
-	asUint := uint8(numCPUs)
-	return &Argon2idHasher{Time: 1, Memory: 64 * 1024, Threads: asUint, KeyLen: 32}
+	return &Argon2idHasher{conf}
+}
+
+func (h *Argon2idHasher) Key(password string, salt []byte) ([]byte, error) {
+	key := argon2.IDKey([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
+	return key, nil
 }
 
 func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
@@ -73,13 +122,11 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	if saltErr != nil {
 		return nil, saltErr
 	}
-	key := argon2.IDKey([]byte(password), salt, h.Time, h.Memory, h.Threads, h.KeyLen)
-	// encode salt and key
+	key, keyErr := h.Key(password, salt)
+	if keyErr != nil {
+		return nil, keyErr
+	}
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
 	result := fmt.Sprintf("$argon2id$%d$%d$%d$%d$%s$%s", argon2.Version, h.Memory, h.Time, h.Threads, saltEnc, keyEnc)
 	return []byte(result), nil
-}
-
-func (h *Argon2idHasher) Encode(hash []byte) (string, error) {
-	return string(hash), nil
 }
