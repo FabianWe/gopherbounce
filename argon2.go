@@ -65,7 +65,7 @@ func NewArgon2idHasher() *Argon2idHasher {
 		numCPUs = 4
 	}
 	asUint := uint8(numCPUs)
-	return &Argon2idHasher{Time: 3, Memory: 32 * 1024, Threads: asUint, KeyLen: 32}
+	return &Argon2idHasher{Time: 1, Memory: 64 * 1024, Threads: asUint, KeyLen: 32}
 }
 
 func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
