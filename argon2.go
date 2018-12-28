@@ -298,8 +298,8 @@ func ParseArgon2iData(hashed []byte) (*Argon2iData, error) {
 	if splitErr != nil {
 		return nil, splitErr
 	}
-	if split.getAlgorithm() != "argon2i" {
-		return nil, NewAlgIDError("gopherbounce/argon2", "argon2i", split.getAlgorithm())
+	if split.getAlgorithm() != Argon2iName {
+		return nil, NewAlgIDError("gopherbounce/argon2", Argon2iName, split.getAlgorithm())
 	}
 	conf, confErr := split.getConfig()
 	if confErr != nil {
@@ -334,8 +334,8 @@ func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 	if splitErr != nil {
 		return nil, splitErr
 	}
-	if split.getAlgorithm() != "argon2id" {
-		return nil, NewAlgIDError("gopherbounce/argon2", "argon2id", split.getAlgorithm())
+	if split.getAlgorithm() != Argon2idName {
+		return nil, NewAlgIDError("gopherbounce/argon2", Argon2idName, split.getAlgorithm())
 	}
 	conf, confErr := split.getConfig()
 	if confErr != nil {
@@ -364,8 +364,7 @@ func ParseArgon2idData(hashed []byte) (*Argon2idData, error) {
 }
 
 // Argon2iValidator implements Validator for argon2i hashes.
-type Argon2iValidator struct {}
-
+type Argon2iValidator struct{}
 
 // Compare implements the Validator interface for argon2i hashes.
 func (v Argon2iValidator) Compare(hashed []byte, password string) error {
@@ -388,7 +387,7 @@ func (v Argon2iValidator) Compare(hashed []byte, password string) error {
 }
 
 // Argon2idValidator implements Validator for argon2id hashes.
-type Argon2idValidator struct {}
+type Argon2idValidator struct{}
 
 // Compare implements the Validator interface for argon2id hashes.
 func (v Argon2idValidator) Compare(hashed []byte, password string) error {

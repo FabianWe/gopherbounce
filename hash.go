@@ -22,6 +22,18 @@ import (
 )
 
 const (
+	// BcryptName is the name of the bcrypt algorithm.
+	BcryptName = "bcrypt"
+
+	// ScryptName is the name of the scrypt algorithm.
+	ScryptName = "scrypt"
+
+	// Argon2iName is the name of the Argon2i algorithm.
+	Argon2iName = "argon2i"
+
+	// Argon2idName is the name of the Argon2id algorithm.
+	Argon2idName = "argon2id"
+
 	// BcryptPrefix is the algorithm prefix in the hash encoding.
 	BcryptPrefix = "$2a$"
 
@@ -90,17 +102,17 @@ func CompareHashes(x, y []byte) bool {
 
 var (
 	// Bcrypt is a bcrypt Hasher.
-	Bcrypt        = NewBcryptHasher(nil)
+	Bcrypt = NewBcryptHasher(nil)
 
 	// Scrypt is a scrypt Hasher.
-	Scrypt        = NewScryptHasher(nil)
+	Scrypt = NewScryptHasher(nil)
 
 	// Argon2i is a argon2 Hasher using the Argon2i key function.
-	Argon2i       = NewArgon2iHasher(nil)
+	Argon2i = NewArgon2iHasher(nil)
 
 	// Argon2id is a argon2 Hasher using the Argon2id key function.
 	// Argon2id is considered more secure than Argon2i.
-	Argon2id      = NewArgon2idHasher(nil)
+	Argon2id = NewArgon2idHasher(nil)
 
 	// DefaultHasher ia a rather secure Hasher that should be safe to be used
 	// by most applications. At the moment it's  Argon2id with the default
@@ -213,7 +225,7 @@ func BcryptHashSize() int {
 // length.
 func SycryptHashSize(keyLen int) int {
 	maxEncLength := DefaultEncoding.Encoding.EncodedLen(keyLen)
-	return 4 + 4 + 3 * MaxIntLength + 2 * maxEncLength
+	return 4 + 4 + 3*MaxIntLength + 2*maxEncLength
 }
 
 // Argon2iHashSize returns the maximal hash size of a argon2i hash with a key
@@ -221,7 +233,7 @@ func SycryptHashSize(keyLen int) int {
 // actual length.
 func Argon2iHashSize(keyLen int) int {
 	maxEncLength := DefaultEncoding.Encoding.EncodedLen(keyLen)
-	return 9 + 5 + 4 * MaxIntLength + 2 * maxEncLength
+	return 9 + 5 + 4*MaxIntLength + 2*maxEncLength
 }
 
 // Argon2idHashSize returns the maximal hash size of a argon2id hash with a key

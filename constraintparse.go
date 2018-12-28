@@ -235,7 +235,7 @@ L:
 				return nil, err
 			}
 			switch algorithm {
-			case "bcrypt", "scrypt", "argon2i", "argon2id":
+			case BcryptName, ScryptName, Argon2iName, Argon2idName:
 				newBlock := NewConstraintBlock(algorithm, name)
 				result = append(result, newBlock)
 				lastBlock = newBlock
@@ -275,28 +275,28 @@ L:
 			var info *ConstraintInfo
 			var err error
 			switch lastBlock.Algorithm {
-			case "bcrypt":
+			case BcryptName:
 				var bcons BcryptConstraint
 				bcons, info, err = ParseBcryptCons(line)
 				if err != nil {
 					return nil, err
 				}
 				cons = MakeBcryptConstraint(bcons)
-			case "scrypt":
+			case ScryptName:
 				var scons ScryptConstraint
 				scons, info, err = ParseScryptCons(line)
 				if err != nil {
 					return nil, err
 				}
 				cons = MakeScryptConstraint(scons)
-			case "argon2i":
+			case Argon2iName:
 				var argon2cons Argon2Constraint
 				argon2cons, info, err = ParseArgon2Cons(line)
 				if err != nil {
 					return nil, err
 				}
 				cons = MakeArgon2iConstraint(argon2cons)
-			case "argon2id":
+			case Argon2idName:
 				var argon2cons Argon2Constraint
 				argon2cons, info, err = ParseArgon2Cons(line)
 				if err != nil {
