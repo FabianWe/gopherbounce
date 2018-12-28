@@ -76,7 +76,7 @@ func ParseConstraintUint(line string, bitSize int) (lhs string, rhs uint64, rel 
 	return
 }
 
-func ParseBcryptCostCons(line string) (BcryptConstraint, error) {
+func ParseBcryptCons(line string) (BcryptConstraint, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
 		return nil, err
@@ -87,5 +87,65 @@ func ParseBcryptCostCons(line string) (BcryptConstraint, error) {
 		return BcryptCostConstraint(bound, rel), nil
 	default:
 		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be \"cost\", got %s", lhs))
+	}
+}
+
+func ParseScryptConst(line string) (ScryptConstraint, error) {
+	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
+	if err != nil {
+		return nil, err
+	}
+	bound := int(bound64)
+	switch strings.ToLower(lhs) {
+	case "n":
+		return ScryptNConstraint(bound, rel), nil
+	case "r":
+		return ScryptRConstraint(bound, rel), nil
+	case "p":
+		return ScryptPConstraint(bound, rel), nil
+	case "keylen", "len":
+		return ScryptKeyLenConstraint(bound, rel), nil
+	default:
+		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be N, R, P or KeyLen, got %s", lhs))
+	}
+}
+
+func ParseArgon2Const(line string) (Argon2Constraint, error) {
+	lhs, rhsStr, rel, err := ParseConstraintLine(line)
+	if err != nil {
+		return nil, err
+	}
+	var bound64 uint64
+	switch strings.ToLower(lhs) {
+	case "time", "t":
+		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
+		if err != nil {
+			return nil, NewConstraintSyntaxError(err.Error())
+		}
+		bound := uint32(bound64)
+		return Argon2TimeConstraint(bound, rel), nil
+	case "memory", "m":
+		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
+		if err != nil {
+			return nil, NewConstraintSyntaxError(err.Error())
+		}
+		bound := uint32(bound64)
+		return Argon2MemoryConstraint(bound, rel), nil
+	case "keylen", "len":
+		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
+		if err != nil {
+			return nil, NewConstraintSyntaxError(err.Error())
+		}
+		bound := uint32(bound64)
+		return Argon2KeyLenConstraint(bound, rel), nil
+	case "threads", "p":
+		bound64, err = strconv.ParseUint(rhsStr, 10, 8)
+		if err != nil {
+			return nil, NewConstraintSyntaxError(err.Error())
+		}
+		bound := uint8(bound64)
+		return Argon2ThreadsConstraint(bound, rel), nil
+	default:
+		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be time, memory, threads or KeyLen, got %s", lhs))
 	}
 }
