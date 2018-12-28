@@ -19,16 +19,25 @@ import (
 	"log"
 )
 
+// BinRelation is a type used to identify relations on integers (<, = etc.).
 type BinRelation int
 
 const (
+	// Less describes the relation <.
 	Less BinRelation = iota
+	// Greater describes the relation >.
 	Greater
+	// Leq describes the relation ≤.
 	Leq
+	// Geq describes the relation ≥.
 	Geq
+	// Eq describes the equality relation =.
 	Eq
 )
 
+// ParseRelation parses the relation type from a string.
+// It accepts the "obvious" symbols like <, >=, =.
+// It also accepts ≤ and ≥.
 func ParseRelation(s string) (BinRelation, error) {
 	switch s {
 	case "<":
@@ -63,6 +72,9 @@ func (rel BinRelation) String() string {
 	}
 }
 
+// CompareInt compares two integers given the relation.
+// For example CompareInt(21, 42, Less) would return true.
+// For an unkown relation it returns false and logs a warning.
 func CompareInt(a, b int64, rel BinRelation) bool {
 	switch rel {
 	case Less:
@@ -81,6 +93,8 @@ func CompareInt(a, b int64, rel BinRelation) bool {
 	}
 }
 
+// CompareUint compares to uints given the relation.
+// It works as CompareInt, but works with uints instead of ints.
 func CompareUint(a, b uint64, rel BinRelation) bool {
 	switch rel {
 	case Less:
@@ -99,8 +113,17 @@ func CompareUint(a, b uint64, rel BinRelation) bool {
 	}
 }
 
+// Constraint describes a property a hasher must have.
+// Usually they inclucde a restriction on the type of the hasher and
+// restrictions on the hasher's parameters. Like: A bcrypt hasher with
+// cost < 10. Constraints are used to find hashes the should be renewed.
 type Constraint func(Hasher) bool
 
+// MakeConjunction returns a new constraint that is the conjunction of other
+// constraints. That is all constraints must be true in order for the
+// conjunction to be true.
+// If constraints is empty a conjunction always returns false and logs a
+// warning.
 func MakeConjunction(constraints ...Constraint) Constraint {
 	if len(constraints) == 0 {
 		log.Println("Warning: Empty conjunction, returning false")
@@ -118,8 +141,12 @@ func MakeConjunction(constraints ...Constraint) Constraint {
 	}
 }
 
+// BcryptConstraint is a constraint based on a bcrypt hasher.
 type BcryptConstraint func(BcryptHasher) bool
 
+// MakeBcryptConstraint transforms a BcryptConstraint to a general Constraint.
+// It performs a type check and applies the wrapped constraint if the hasher is
+// a bcrypt hasher.
 func MakeBcryptConstraint(c BcryptConstraint) Constraint {
 	return func(h Hasher) bool {
 		bHasher, ok := h.(BcryptHasher)
@@ -130,14 +157,19 @@ func MakeBcryptConstraint(c BcryptConstraint) Constraint {
 	}
 }
 
+// BcryptCostConstraint is a constraint that checks if cost RELATION bound.
 func BcryptCostConstraint(bound int, relation BinRelation) BcryptConstraint {
 	return func(h BcryptHasher) bool {
 		return CompareInt(int64(h.Cost), int64(bound), relation)
 	}
 }
 
+// ScryptConstraint is a constraint based on a scrypt hasher.
 type ScryptConstraint func(*ScryptHasher) bool
 
+// MakeScryptConstraint transforms a ScryptConstraint to a general Constraint.
+// It performs a type check and applies the wrapped constraint if the hasher is
+// a scrypt hasher.
 func MakeScryptConstraint(c ScryptConstraint) Constraint {
 	return func(h Hasher) bool {
 		sHasher, ok := h.(*ScryptHasher)
@@ -156,6 +188,7 @@ func scryptIntConstraint(selector func(*ScryptHasher) int, bound int, relation B
 	}
 }
 
+// ScryptNConstraint is a constraint that checks if N RELATION bound.
 func ScryptNConstraint(bound int, relation BinRelation) ScryptConstraint {
 	selector := func(h *ScryptHasher) int {
 		return h.N
@@ -163,6 +196,7 @@ func ScryptNConstraint(bound int, relation BinRelation) ScryptConstraint {
 	return scryptIntConstraint(selector, bound, relation)
 }
 
+// ScryptRConstraint is a constraint that checks if R RELATION bound.
 func ScryptRConstraint(bound int, relation BinRelation) ScryptConstraint {
 	selector := func(h *ScryptHasher) int {
 		return h.R
@@ -170,6 +204,7 @@ func ScryptRConstraint(bound int, relation BinRelation) ScryptConstraint {
 	return scryptIntConstraint(selector, bound, relation)
 }
 
+// ScryptPConstraint is a constraint that checks if P RELATION bound.
 func ScryptPConstraint(bound int, relation BinRelation) ScryptConstraint {
 	selector := func(h *ScryptHasher) int {
 		return h.P
@@ -177,6 +212,7 @@ func ScryptPConstraint(bound int, relation BinRelation) ScryptConstraint {
 	return scryptIntConstraint(selector, bound, relation)
 }
 
+// ScryptKeyLenConstraint is a constraint that checks if KeyLen RELATION bound.
 func ScryptKeyLenConstraint(bound int, relation BinRelation) ScryptConstraint {
 	selector := func(h *ScryptHasher) int {
 		return h.KeyLen
@@ -184,8 +220,14 @@ func ScryptKeyLenConstraint(bound int, relation BinRelation) ScryptConstraint {
 	return scryptIntConstraint(selector, bound, relation)
 }
 
+// Argon2Constraint is a constraint based on an argon2 hasher (argon2i or
+// argon2id). It is actually based on the conf of the hashers (since both Hasher
+// implementations share the same conf).
 type Argon2Constraint func(*Argon2Conf) bool
 
+// MakeArgon2iConstraint transforms a Argon2Constraint to a general Constraint.
+// It performs a type check and applies the wrapped constraint if the hasher is
+// an argon2i hasher.
 func MakeArgon2iConstraint(c Argon2Constraint) Constraint {
 	return func(h Hasher) bool {
 		aHasher, ok := h.(*Argon2iHasher)
@@ -196,6 +238,9 @@ func MakeArgon2iConstraint(c Argon2Constraint) Constraint {
 	}
 }
 
+// MakeArgon2idConstraint transforms a Argon2Constraint to a general Constraint.
+// It performs a type check and applies the wrapped constraint if the hasher is
+// an argon2id hasher.
 func MakeArgon2idConstraint(c Argon2Constraint) Constraint {
 	return func(h Hasher) bool {
 		aHasher, ok := h.(*Argon2idHasher)
@@ -222,6 +267,7 @@ func argon2Uint8Constraint(selector func(*Argon2Conf) uint8, bound uint8, relati
 	}
 }
 
+// Argon2TimeConstraint is a constraint that checks if Time RELATION bound.
 func Argon2TimeConstraint(bound uint32, relation BinRelation) Argon2Constraint {
 	selector := func(c *Argon2Conf) uint32 {
 		return c.Time
@@ -229,6 +275,7 @@ func Argon2TimeConstraint(bound uint32, relation BinRelation) Argon2Constraint {
 	return argon2Uint32Constraint(selector, bound, relation)
 }
 
+// Argon2MemoryConstraint is a constraint that checks if Memory RELATION bound.
 func Argon2MemoryConstraint(bound uint32, relation BinRelation) Argon2Constraint {
 	selector := func(c *Argon2Conf) uint32 {
 		return c.Memory
@@ -236,6 +283,7 @@ func Argon2MemoryConstraint(bound uint32, relation BinRelation) Argon2Constraint
 	return argon2Uint32Constraint(selector, bound, relation)
 }
 
+// Argon2KeyLenConstraint is a constraint that checks if KeyLen RELATION bound.
 func Argon2KeyLenConstraint(bound uint32, relation BinRelation) Argon2Constraint {
 	selector := func(c *Argon2Conf) uint32 {
 		return c.KeyLen
@@ -243,6 +291,8 @@ func Argon2KeyLenConstraint(bound uint32, relation BinRelation) Argon2Constraint
 	return argon2Uint32Constraint(selector, bound, relation)
 }
 
+// Argon2ThreadsConstraint is a constraint that checks if
+// Threads RELATION bound.
 func Argon2ThreadsConstraint(bound uint8, relation BinRelation) Argon2Constraint {
 	selector := func(c *Argon2Conf) uint8 {
 		return c.Threads
@@ -250,16 +300,23 @@ func Argon2ThreadsConstraint(bound uint8, relation BinRelation) Argon2Constraint
 	return argon2Uint8Constraint(selector, bound, relation)
 }
 
+// ConstraintInfo describes "meta" information about constraints. Because
+// constraints are functions it's not easy to get a human readable version
+// of a constraint. This type helps with that. The left-hand side describes
+// the variable name used for the relation (like "Cost") and the right-hand side
+// the bound of the constraint. For example the constraint cost < 10 would be
+// described as {"cost" 10 Less}.
 type ConstraintInfo struct {
-	Lhs      string
-	Rhs      interface{}
+	LHS      string
+	RHS      interface{}
 	Relation BinRelation
 }
 
+// NewConstraintInfo returns a new constraint info.
 func NewConstraintInfo(lhs string, rhs interface{}, rel BinRelation) *ConstraintInfo {
 	return &ConstraintInfo{
-		Lhs:      lhs,
-		Rhs:      rhs,
+		LHS:      lhs,
+		RHS:      rhs,
 		Relation: rel,
 	}
 }
