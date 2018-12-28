@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -285,5 +286,16 @@ L:
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+	if lastBlock != nil && len(lastBlock.Constraints) == 0 {
+		return nil, NewConstraintSyntaxError(fmt.Sprintf("No constraints in block for %s (with name %s)", lastBlock.Algorithm, lastBlock.Name))
+	}
 	return result, nil
+}
+
+func ParseConstraintsFromFile(filename string) ([]*ConstraintBlock, error) {
+	f, openErr := os.Open(filename)
+	if openErr != nil {
+		defer f.Close()
+	}
+	return ParseConstraints(f)
 }

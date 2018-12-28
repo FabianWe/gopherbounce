@@ -1,0 +1,14 @@
+[bcrypt]
+Cost < 12
+
+[scrypt = foo]
+KeyLen < 12
+R <= 9
+
+[argon2i = bar]
+Time < 4
+Memory = 2
+
+[argon2id]
+Time < 10
+KeyLen = 32
