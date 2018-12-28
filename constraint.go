@@ -249,3 +249,17 @@ func Argon2ThreadsConstraint(bound uint8, relation BinRelation) Argon2Constraint
 	}
 	return argon2Uint8Constraint(selector, bound, relation)
 }
+
+type ConstraintInfo struct {
+	Lhs      string
+	Rhs      interface{}
+	Relation BinRelation
+}
+
+func NewConstraintInfo(lhs string, rhs interface{}, rel BinRelation) *ConstraintInfo {
+	return &ConstraintInfo{
+		Lhs:      lhs,
+		Rhs:      rhs,
+		Relation: rel,
+	}
+}

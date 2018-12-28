@@ -76,76 +76,76 @@ func ParseConstraintUint(line string, bitSize int) (lhs string, rhs uint64, rel 
 	return
 }
 
-func ParseBcryptCons(line string) (BcryptConstraint, error) {
+func ParseBcryptCons(line string) (BcryptConstraint, *ConstraintInfo, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	bound := int(bound64)
 	switch strings.ToLower(lhs) {
 	case "cost", "c":
-		return BcryptCostConstraint(bound, rel), nil
+		return BcryptCostConstraint(bound, rel), NewConstraintInfo("cost", bound, rel), nil
 	default:
-		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be \"cost\", got %s", lhs))
+		return nil, nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be \"cost\", got %s", lhs))
 	}
 }
 
-func ParseScryptConst(line string) (ScryptConstraint, error) {
+func ParseScryptConst(line string) (ScryptConstraint, *ConstraintInfo, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	bound := int(bound64)
 	switch strings.ToLower(lhs) {
 	case "n":
-		return ScryptNConstraint(bound, rel), nil
+		return ScryptNConstraint(bound, rel), NewConstraintInfo("N", bound, rel), nil
 	case "r":
-		return ScryptRConstraint(bound, rel), nil
+		return ScryptRConstraint(bound, rel), NewConstraintInfo("R", bound, rel), nil
 	case "p":
-		return ScryptPConstraint(bound, rel), nil
+		return ScryptPConstraint(bound, rel), NewConstraintInfo("P", bound, rel), nil
 	case "keylen", "len":
-		return ScryptKeyLenConstraint(bound, rel), nil
+		return ScryptKeyLenConstraint(bound, rel), NewConstraintInfo("KeyLen", bound, rel), nil
 	default:
-		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be N, R, P or KeyLen, got %s", lhs))
+		return nil, nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be N, R, P or KeyLen, got %s", lhs))
 	}
 }
 
-func ParseArgon2Const(line string) (Argon2Constraint, error) {
+func ParseArgon2Const(line string) (Argon2Constraint, *ConstraintInfo, error) {
 	lhs, rhsStr, rel, err := ParseConstraintLine(line)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var bound64 uint64
 	switch strings.ToLower(lhs) {
 	case "time", "t":
 		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
 		if err != nil {
-			return nil, NewConstraintSyntaxError(err.Error())
+			return nil, nil, NewConstraintSyntaxError(err.Error())
 		}
 		bound := uint32(bound64)
-		return Argon2TimeConstraint(bound, rel), nil
+		return Argon2TimeConstraint(bound, rel), NewConstraintInfo("Time", bound, rel), nil
 	case "memory", "m":
 		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
 		if err != nil {
-			return nil, NewConstraintSyntaxError(err.Error())
+			return nil, nil, NewConstraintSyntaxError(err.Error())
 		}
 		bound := uint32(bound64)
-		return Argon2MemoryConstraint(bound, rel), nil
+		return Argon2MemoryConstraint(bound, rel), NewConstraintInfo("Memory", bound, rel), nil
 	case "keylen", "len":
 		bound64, err = strconv.ParseUint(rhsStr, 10, 32)
 		if err != nil {
-			return nil, NewConstraintSyntaxError(err.Error())
+			return nil, nil, NewConstraintSyntaxError(err.Error())
 		}
 		bound := uint32(bound64)
-		return Argon2KeyLenConstraint(bound, rel), nil
+		return Argon2KeyLenConstraint(bound, rel), NewConstraintInfo("KeyLen", bound, rel), nil
 	case "threads", "p":
 		bound64, err = strconv.ParseUint(rhsStr, 10, 8)
 		if err != nil {
-			return nil, NewConstraintSyntaxError(err.Error())
+			return nil, nil, NewConstraintSyntaxError(err.Error())
 		}
 		bound := uint8(bound64)
-		return Argon2ThreadsConstraint(bound, rel), nil
+		return Argon2ThreadsConstraint(bound, rel), NewConstraintInfo("Threads", bound, rel), nil
 	default:
-		return nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be time, memory, threads or KeyLen, got %s", lhs))
+		return nil, nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be time, memory, threads or KeyLen, got %s", lhs))
 	}
 }
