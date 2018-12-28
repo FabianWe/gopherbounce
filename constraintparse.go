@@ -15,7 +15,9 @@
 package gopherbounce
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,10 +33,13 @@ func (err ConstraintSyntaxError) Error() string {
 	return "Syntax error: " + string(err)
 }
 
-var ConstraintLineRegex = regexp.MustCompile(`^\s*([a-zA-Z]+)\s+(<|>|<=|>=|=|≤|≥)\s+(-?\d+)\s*$`)
+var (
+	ConstraintLineRx = regexp.MustCompile(`^\s*([a-zA-Z]+)\s+(<|>|<=|>=|=|≤|≥)\s+(-?\d+)\s*$`)
+	HeadLineRx       = regexp.MustCompile(`^\s*\[\s*(\w+)(\s*=\s*(\w+))?\s*\]\s*$`)
+)
 
 func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err error) {
-	match := ConstraintLineRegex.FindStringSubmatch(line)
+	match := ConstraintLineRx.FindStringSubmatch(line)
 	if len(match) == 0 {
 		err = NewConstraintSyntaxError("Can't match line")
 		return
@@ -45,6 +50,20 @@ func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err err
 		return
 	}
 	lhs, rhs = match[1], match[3]
+	return
+}
+
+func ParseHeadLine(line string) (algorithm, name string, err error) {
+	match := HeadLineRx.FindStringSubmatch(line)
+	fmt.Println("Match len:", len(match))
+	switch len(match) {
+	case 0:
+		err = NewConstraintSyntaxError("Can't match line")
+	case 4:
+		algorithm, name = match[1], match[3]
+	default:
+		err = fmt.Errorf("Internal error: Regex match in gopherbounce.ParseHeadLine has length %d", len(match))
+	}
 	return
 }
 
@@ -90,7 +109,7 @@ func ParseBcryptCons(line string) (BcryptConstraint, *ConstraintInfo, error) {
 	}
 }
 
-func ParseScryptConst(line string) (ScryptConstraint, *ConstraintInfo, error) {
+func ParseScryptCons(line string) (ScryptConstraint, *ConstraintInfo, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
 		return nil, nil, err
@@ -110,7 +129,7 @@ func ParseScryptConst(line string) (ScryptConstraint, *ConstraintInfo, error) {
 	}
 }
 
-func ParseArgon2Const(line string) (Argon2Constraint, *ConstraintInfo, error) {
+func ParseArgon2Cons(line string) (Argon2Constraint, *ConstraintInfo, error) {
 	lhs, rhsStr, rel, err := ParseConstraintLine(line)
 	if err != nil {
 		return nil, nil, err
@@ -148,4 +167,123 @@ func ParseArgon2Const(line string) (Argon2Constraint, *ConstraintInfo, error) {
 	default:
 		return nil, nil, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be time, memory, threads or KeyLen, got %s", lhs))
 	}
+}
+
+type ConstraintBlock struct {
+	Algorithm   string
+	Name        string
+	Constraints []Constraint
+	Infos       []*ConstraintInfo
+}
+
+func NewConstraintBlock(algorithm, name string) *ConstraintBlock {
+	return &ConstraintBlock{
+		Algorithm:   algorithm,
+		Name:        name,
+		Constraints: make([]Constraint, 0),
+		Infos:       make([]*ConstraintInfo, 0),
+	}
+}
+
+// Note that constraints / infos can be of length 0
+func ParseConstraints(r io.Reader) ([]*ConstraintBlock, error) {
+	result := make([]*ConstraintBlock, 0)
+	scanner := bufio.NewScanner(r)
+	state := 0
+	var lastBlock *ConstraintBlock
+L:
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		switch state {
+		case 0:
+			if len(line) == 0 || strings.HasPrefix(line, "#") {
+				continue L
+			}
+			// must be a valid heading
+			algorithm, name, err := ParseHeadLine(line)
+			if err != nil {
+				return nil, err
+			}
+			switch algorithm {
+			case "bcrypt", "scrypt", "argon2i", "argon2id":
+				newBlock := NewConstraintBlock(algorithm, name)
+				result = append(result, newBlock)
+				lastBlock = newBlock
+				state = 1
+			default:
+				return nil, NewConstraintSyntaxError("Invalid algorithm name")
+			}
+		case 1:
+			// now we must either parse an empty line (meaning end of block)
+			// or a constraint
+			if strings.HasPrefix(line, "#") {
+				continue L
+			}
+			if len(line) == 0 {
+				// now we must finish the current box, that is we check if it is not
+				// empty, switch to state 0 and continue the loop
+
+				// this should no thappen
+				if lastBlock == nil {
+					return nil, fmt.Errorf("Internal error: Invalid configuration while parsing")
+				}
+				if len(lastBlock.Constraints) == 0 {
+					return nil, NewConstraintSyntaxError(fmt.Sprintf("No constraints in block for %s (with name %s)", lastBlock.Algorithm, lastBlock.Name))
+				}
+				state = 0
+				continue L
+			}
+			// len of line is not 0, thus we must parse a constraint, depending on
+			// the last algorithm
+
+			// this should no thappen
+			if lastBlock == nil {
+				return nil, fmt.Errorf("Internal error: Invalid configuration while parsing")
+			}
+
+			var cons Constraint
+			var info *ConstraintInfo
+			var err error
+			switch lastBlock.Algorithm {
+			case "bcrypt":
+				var bcons BcryptConstraint
+				bcons, info, err = ParseBcryptCons(line)
+				if err != nil {
+					return nil, err
+				}
+				cons = MakeBcryptConstraint(bcons)
+			case "scrypt":
+				var scons ScryptConstraint
+				scons, info, err = ParseScryptCons(line)
+				if err != nil {
+					return nil, err
+				}
+				cons = MakeScryptConstraint(scons)
+			case "argon2i":
+				var argon2cons Argon2Constraint
+				argon2cons, info, err = ParseArgon2Cons(line)
+				if err != nil {
+					return nil, err
+				}
+				cons = MakeArgon2iConstraint(argon2cons)
+			case "argon2id":
+				var argon2cons Argon2Constraint
+				argon2cons, info, err = ParseArgon2Cons(line)
+				if err != nil {
+					return nil, err
+				}
+				cons = MakeArgon2idConstraint(argon2cons)
+			default:
+				return nil, fmt.Errorf("Internal error: Parsed an invalid algorithm name: %s", lastBlock.Algorithm)
+			}
+			lastBlock.Constraints = append(lastBlock.Constraints, cons)
+			lastBlock.Infos = append(lastBlock.Infos, info)
+		default:
+			return nil, fmt.Errorf("Internal error: Invalid parser state %d", state)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

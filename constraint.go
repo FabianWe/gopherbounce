@@ -138,7 +138,7 @@ func BcryptCostConstraint(bound int, relation BinRelation) BcryptConstraint {
 
 type ScryptConstraint func(*ScryptHasher) bool
 
-func MakeScryptConstraing(c ScryptConstraint) Constraint {
+func MakeScryptConstraint(c ScryptConstraint) Constraint {
 	return func(h Hasher) bool {
 		sHasher, ok := h.(*ScryptHasher)
 		if !ok {
