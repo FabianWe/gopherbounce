@@ -223,7 +223,7 @@ func ParseScryptData(hashed []byte) (*ScryptData, error) {
 }
 
 // ScryptValidator implements Validator for scrypt hashes.
-type ScryptValidator struct {}
+type ScryptValidator struct{}
 
 // Compare implements the Validator interface for scrypt hashes.
 func (v ScryptValidator) Compare(hashed []byte, password string) error {

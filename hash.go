@@ -243,3 +243,12 @@ func Argon2idHashSize(keyLen int) int {
 	// +1 because of additional d in algorithm id
 	return Argon2iHashSize(keyLen) + 1
 }
+
+// func ValidateAndRenew(validator Validator, hasher Hasher, cons Constraint, hashed []byte, password string) (auth error, newHash []byte, newHashErr error) {
+// 	auth = validator.Compare(hashed, password)
+// 	if auth != nil {
+// 		return
+// 	}
+// 	// auth success, then check if
+// 	return
+// }

@@ -141,6 +141,20 @@ func MakeConjunction(constraints ...Constraint) Constraint {
 	}
 }
 
+// MakeDisjunction returns a new constraint that is the disjunction of other
+// constraints. That is: If one constraint is true the disjunction returns true.
+// If constraints is empty the disjunction always returns false.
+func MakeDisjunction(constraints ...Constraint) Constraint {
+	return func(h Hasher) bool {
+		for _, c := range constraints {
+			if c(h) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // BcryptConstraint is a constraint based on a bcrypt hasher.
 type BcryptConstraint func(BcryptHasher) bool
 
