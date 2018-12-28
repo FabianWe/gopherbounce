@@ -24,8 +24,11 @@ import (
 	"strings"
 )
 
+// ConstraintSyntaxError is an error returned if an error occurred due to a
+// invalid syntax while parsing constraints.
 type ConstraintSyntaxError string
 
+// NewConstraintSyntaxError returns a new ConstraintSyntaxError.
 func NewConstraintSyntaxError(cause string) ConstraintSyntaxError {
 	return ConstraintSyntaxError(cause)
 }
@@ -35,10 +38,16 @@ func (err ConstraintSyntaxError) Error() string {
 }
 
 var (
+	// ConstraintLineRx is the regex used to parse a single constraint line.
 	ConstraintLineRx = regexp.MustCompile(`^\s*([a-zA-Z]+)\s+(<|>|<=|>=|=|≤|≥)\s+(-?\d+)\s*$`)
-	HeadLineRx       = regexp.MustCompile(`^\s*\[\s*(\w+)(\s*=\s*(\w+))?\s*\]\s*$`)
+	// HeadLineRx is the regex used to parse a heading line.
+	HeadLineRx = regexp.MustCompile(`^\s*\[\s*(\w+)(\s*=\s*(\w+))?\s*\]\s*$`)
 )
 
+// ParseConstraintLine parses a single line constraint line (with
+// ConstraintLineRx).
+// It returns the lhs and rhs as a string.
+// Example of a line "cost < 10" that would return "cost" "10" Less.
 func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err error) {
 	match := ConstraintLineRx.FindStringSubmatch(line)
 	if len(match) == 0 {
@@ -54,6 +63,10 @@ func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err err
 	return
 }
 
+// ParseHeadLine parses a heading line (with HeadLineRx).
+// Example of a line "[bcypt]" or with a name [scrypt = foo].
+// The first one yields to "bcrypt" and the empty string, the second to
+// "scrypt" and "foo".
 func ParseHeadLine(line string) (algorithm, name string, err error) {
 	match := HeadLineRx.FindStringSubmatch(line)
 	fmt.Println("Match len:", len(match))
@@ -68,6 +81,8 @@ func ParseHeadLine(line string) (algorithm, name string, err error) {
 	return
 }
 
+// ParseConstraintInt works as ParseConstraintLine but the right-hand side
+// is parsed into a int64 (with the given bitSize).
 func ParseConstraintInt(line string, bitSize int) (lhs string, rhs int64, rel BinRelation, err error) {
 	var rhsString string
 	lhs, rhsString, rel, err = ParseConstraintLine(line)
@@ -82,6 +97,7 @@ func ParseConstraintInt(line string, bitSize int) (lhs string, rhs int64, rel Bi
 	return
 }
 
+// ParseConstraintUint works as ParseConstraintInt but parses a uint.
 func ParseConstraintUint(line string, bitSize int) (lhs string, rhs uint64, rel BinRelation, err error) {
 	var rhsString string
 	lhs, rhsString, rel, err = ParseConstraintLine(line)
@@ -96,6 +112,8 @@ func ParseConstraintUint(line string, bitSize int) (lhs string, rhs uint64, rel 
 	return
 }
 
+// ParseBcryptCons parses a constraint for bcrypt. The only allowed form is
+// "cost RELATION BOUND".
 func ParseBcryptCons(line string) (BcryptConstraint, *ConstraintInfo, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
@@ -110,6 +128,8 @@ func ParseBcryptCons(line string) (BcryptConstraint, *ConstraintInfo, error) {
 	}
 }
 
+// ParseScryptCons parses a constraint for scrypt. It allows the following
+// format: "LHS RELATION BOUND" where LHS is either "N", "R", "P" or "KeyLen".
 func ParseScryptCons(line string) (ScryptConstraint, *ConstraintInfo, error) {
 	lhs, bound64, rel, err := ParseConstraintInt(line, strconv.IntSize)
 	if err != nil {
@@ -130,6 +150,9 @@ func ParseScryptCons(line string) (ScryptConstraint, *ConstraintInfo, error) {
 	}
 }
 
+// ParseArgon2Cons parses a constraint for argon2 (argon2i and argon2id). It
+// allows the following format: "LHS RELATION BOUND" where LHS is either "time",
+// "memory", "Threads" or "KeyLen".
 func ParseArgon2Cons(line string) (Argon2Constraint, *ConstraintInfo, error) {
 	lhs, rhsStr, rel, err := ParseConstraintLine(line)
 	if err != nil {
@@ -170,6 +193,10 @@ func ParseArgon2Cons(line string) (Argon2Constraint, *ConstraintInfo, error) {
 	}
 }
 
+// ConstraintBlock describes a block of constraints. A block consists of the
+// algorithm type (for example bcrypt) and all constraints for that algorithm.
+// Constraints and Infos are always of the same length and Infos[i] describes
+// the meta information for Constraints[i].
 type ConstraintBlock struct {
 	Algorithm   string
 	Name        string
@@ -177,6 +204,7 @@ type ConstraintBlock struct {
 	Infos       []*ConstraintInfo
 }
 
+// NewConstraintBlock returns a new box without constraints and infos.
 func NewConstraintBlock(algorithm, name string) *ConstraintBlock {
 	return &ConstraintBlock{
 		Algorithm:   algorithm,
@@ -186,7 +214,8 @@ func NewConstraintBlock(algorithm, name string) *ConstraintBlock {
 	}
 }
 
-// Note that constraints / infos can be of length 0
+// ParseConstraints parses all blocks from a reader, see the README for more
+// details.
 func ParseConstraints(r io.Reader) ([]*ConstraintBlock, error) {
 	result := make([]*ConstraintBlock, 0)
 	scanner := bufio.NewScanner(r)
@@ -292,6 +321,8 @@ L:
 	return result, nil
 }
 
+// ParseConstraintsFromFile works like ParseConstraints and reads the content
+// from a file.
 func ParseConstraintsFromFile(filename string) ([]*ConstraintBlock, error) {
 	f, openErr := os.Open(filename)
 	if openErr != nil {
