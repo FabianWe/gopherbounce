@@ -17,6 +17,7 @@ package gopherbounce
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 // BinRelation is a type used to identify relations on integers (<, = etc.).
@@ -113,224 +114,274 @@ func CompareUint(a, b uint64, rel BinRelation) bool {
 	}
 }
 
+type AccType int
+
+const (
+	Disjunction AccType = iota
+	Conjunction
+)
+
 // Constraint describes a property a hasher must have.
 // Usually they inclucde a restriction on the type of the hasher and
 // restrictions on the hasher's parameters. Like: A bcrypt hasher with
 // cost < 10. Constraints are used to find hashes the should be renewed.
-type Constraint func(Hasher) bool
+// A constraints check function gets a hashed entry as input and decides
+// what to do with it, like decoding it. Usually there are accumlator functions
+// to avoid decoding an entry again and again.
+type Constraint interface {
+	Check(hashed []byte) bool
+}
 
-// MakeConjunction returns a new constraint that is the conjunction of other
-// constraints. That is all constraints must be true in order for the
-// conjunction to be true.
-// If constraints is empty a conjunction always returns false and logs a
-// warning.
-func MakeConjunction(constraints ...Constraint) Constraint {
-	if len(constraints) == 0 {
-		log.Println("Warning: Empty conjunction, returning false")
-		return func(Hasher) bool {
-			return false
-		}
-	}
-	return func(h Hasher) bool {
-		for _, c := range constraints {
-			if !c(h) {
-				return false
-			}
-		}
-		return true
+type AbstractBcryptConstraint interface {
+	CheckBcrypt(conf *BcryptConf) bool
+}
+
+type BcryptConstraint struct {
+	CostBound int64
+	Rel       BinRelation
+}
+
+func NewBcryptConstraint(bound int, rel BinRelation) BcryptConstraint {
+	return BcryptConstraint{
+		CostBound: int64(bound),
+		Rel:       rel,
 	}
 }
 
-// MakeDisjunction returns a new constraint that is the disjunction of other
-// constraints. That is: If one constraint is true the disjunction returns true.
-// If constraints is empty the disjunction always returns false.
-func MakeDisjunction(constraints ...Constraint) Constraint {
-	return func(h Hasher) bool {
-		for _, c := range constraints {
-			if c(h) {
+func (c BcryptConstraint) CheckBcrypt(conf *BcryptConf) bool {
+	return CompareInt(int64(conf.Cost), c.CostBound, c.Rel)
+}
+
+func (c BcryptConstraint) String() string {
+	return fmt.Sprintf("Cost %v %d", c.Rel, c.CostBound)
+}
+
+type BcryptAcc struct {
+	Constraints []AbstractBcryptConstraint
+	Type AccType
+}
+
+func NewBcryptAcc(t AccType, constraints ...AbstractBcryptConstraint) BcryptAcc {
+	return BcryptAcc{
+		Constraints: constraints,
+		Type: t,
+	}
+}
+
+func (acc BcryptAcc) CheckBcrypt(conf *BcryptConf) bool {
+	switch acc.Type {
+	case Disjunction:
+		for _, c := range acc.Constraints {
+			if c.CheckBcrypt(conf) {
 				return true
 			}
 		}
 		return false
-	}
-}
-
-// BcryptConstraint is a constraint based on a bcrypt hasher.
-type BcryptConstraint func(BcryptHasher) bool
-
-// MakeBcryptConstraint transforms a BcryptConstraint to a general Constraint.
-// It performs a type check and applies the wrapped constraint if the hasher is
-// a bcrypt hasher.
-func MakeBcryptConstraint(c BcryptConstraint) Constraint {
-	return func(h Hasher) bool {
-		bHasher, ok := h.(BcryptHasher)
-		if !ok {
-			return false
+	case Conjunction:
+		for _, c := range acc.Constraints {
+			if !c.CheckBcrypt(conf) {
+				return false
+			}
 		}
-		return c(bHasher)
+		return true
+	default:
+		log.Printf("gopherbounce/bcrypt: Invalid accumulator type: %v\n", acc.Type)
+		return false
 	}
 }
 
-// BcryptCostConstraint is a constraint that checks if cost RELATION bound.
-func BcryptCostConstraint(bound int, relation BinRelation) BcryptConstraint {
-	return func(h BcryptHasher) bool {
-		return CompareInt(int64(h.Cost), int64(bound), relation)
+type AbstractScryptConstraint interface {
+	CheckScrypt(data *ScryptData) bool
+}
+
+type ScryptConstraint struct {
+	Bound   int64
+	VarName string
+	Rel     BinRelation
+}
+
+func NewScryptConstraint(bound int64, varName string, rel BinRelation) ScryptConstraint {
+	return ScryptConstraint{
+		Bound:   bound,
+		VarName: strings.ToLower(varName),
+		Rel:     rel,
 	}
 }
 
-// ScryptConstraint is a constraint based on a scrypt hasher.
-type ScryptConstraint func(*ScryptHasher) bool
+func (c ScryptConstraint) CheckScrypt(data *ScryptData) bool {
+	var lhs int
+	switch c.VarName {
+	case "n":
+		lhs = data.N
+	case "r":
+		lhs = data.R
+	case "p":
+		lhs = data.P
+	case "keylen":
+		lhs = data.KeyLen
+	default:
+		log.Printf("Invalid scrypt variable name \"%s\"\n", c.VarName)
+		return false
+	}
+	// now lhs is set
+	return CompareInt(int64(lhs), c.Bound, c.Rel)
+}
 
-// MakeScryptConstraint transforms a ScryptConstraint to a general Constraint.
-// It performs a type check and applies the wrapped constraint if the hasher is
-// a scrypt hasher.
-func MakeScryptConstraint(c ScryptConstraint) Constraint {
-	return func(h Hasher) bool {
-		sHasher, ok := h.(*ScryptHasher)
-		if !ok {
-			return false
+func (c ScryptConstraint) String() string {
+	return fmt.Sprintf("%s %v %d", c.VarName, c.Rel, c.Bound)
+}
+
+type ScryptAcc struct {
+	Constraints []AbstractScryptConstraint
+	Type AccType
+}
+
+func NewScryptAcc(t AccType, constraints ...AbstractScryptConstraint) ScryptAcc {
+	return ScryptAcc{
+		Constraints: constraints,
+		Type: t,
+	}
+}
+
+func (acc ScryptAcc) CheckScrypt(data *ScryptData) bool {
+	switch acc.Type {
+	case Disjunction:
+		for _, c := range acc.Constraints {
+			if c.CheckScrypt(data) {
+				return true
+			}
 		}
-		return c(sHasher)
-	}
-}
-
-func scryptIntConstraint(selector func(*ScryptHasher) int, bound int, relation BinRelation) ScryptConstraint {
-	return func(h *ScryptHasher) bool {
-		a := int64(selector(h))
-		b := int64(bound)
-		return CompareInt(a, b, relation)
-	}
-}
-
-// ScryptNConstraint is a constraint that checks if N RELATION bound.
-func ScryptNConstraint(bound int, relation BinRelation) ScryptConstraint {
-	selector := func(h *ScryptHasher) int {
-		return h.N
-	}
-	return scryptIntConstraint(selector, bound, relation)
-}
-
-// ScryptRConstraint is a constraint that checks if R RELATION bound.
-func ScryptRConstraint(bound int, relation BinRelation) ScryptConstraint {
-	selector := func(h *ScryptHasher) int {
-		return h.R
-	}
-	return scryptIntConstraint(selector, bound, relation)
-}
-
-// ScryptPConstraint is a constraint that checks if P RELATION bound.
-func ScryptPConstraint(bound int, relation BinRelation) ScryptConstraint {
-	selector := func(h *ScryptHasher) int {
-		return h.P
-	}
-	return scryptIntConstraint(selector, bound, relation)
-}
-
-// ScryptKeyLenConstraint is a constraint that checks if KeyLen RELATION bound.
-func ScryptKeyLenConstraint(bound int, relation BinRelation) ScryptConstraint {
-	selector := func(h *ScryptHasher) int {
-		return h.KeyLen
-	}
-	return scryptIntConstraint(selector, bound, relation)
-}
-
-// Argon2Constraint is a constraint based on an argon2 hasher (argon2i or
-// argon2id). It is actually based on the conf of the hashers (since both Hasher
-// implementations share the same conf).
-type Argon2Constraint func(*Argon2Conf) bool
-
-// MakeArgon2iConstraint transforms a Argon2Constraint to a general Constraint.
-// It performs a type check and applies the wrapped constraint if the hasher is
-// an argon2i hasher.
-func MakeArgon2iConstraint(c Argon2Constraint) Constraint {
-	return func(h Hasher) bool {
-		aHasher, ok := h.(*Argon2iHasher)
-		if !ok {
-			return false
+		return false
+	case Conjunction:
+		for _, c := range acc.Constraints {
+			if !c.CheckScrypt(data) {
+				return false
+			}
 		}
-		return c(aHasher.Argon2Conf)
+		return true
+	default:
+		log.Printf("gopherbounce/scrypt: Invalid accumulator type: %v\n", acc.Type)
+		return false
 	}
 }
 
-// MakeArgon2idConstraint transforms a Argon2Constraint to a general Constraint.
-// It performs a type check and applies the wrapped constraint if the hasher is
-// an argon2id hasher.
-func MakeArgon2idConstraint(c Argon2Constraint) Constraint {
-	return func(h Hasher) bool {
-		aHasher, ok := h.(*Argon2idHasher)
-		if !ok {
-			return false
+type AbstractArgon2iConstraint interface {
+	CheckArgon2i(data *Argon2iData) bool
+}
+
+type AbstractArgon2idConstraint interface {
+	CheckArgon2id(data *Argon2idData) bool
+}
+
+type Argon2Constraint struct {
+	Bound   uint64
+	VarName string
+	Rel     BinRelation
+}
+
+func NewArgon2Constraint(bound uint64, varName string, rel BinRelation) Argon2Constraint {
+	return Argon2Constraint{
+		Bound:   bound,
+		VarName: strings.ToLower(varName),
+		Rel:     rel,
+	}
+}
+
+func (c Argon2Constraint) checkConf(data *Argon2Conf) bool {
+	var lhs uint64
+	switch c.VarName {
+	case "time":
+		lhs = uint64(data.Time)
+	case "memory":
+		lhs = uint64(data.Memory)
+	case "keylen":
+		lhs = uint64(data.KeyLen)
+	case "threads":
+		lhs = uint64(data.KeyLen)
+	default:
+		log.Printf("Invalid argon2 variable name \"%s\"\n", c.VarName)
+		return false
+	}
+	// now lhs is set
+	return CompareUint(lhs, c.Bound, c.Rel)
+}
+
+func (c Argon2Constraint) CheckArgon2i(data *Argon2iData) bool {
+	return c.checkConf(data.Argon2Conf)
+}
+
+func (c Argon2Constraint) CheckArgon2id(data *Argon2idData) bool {
+	return c.checkConf(data.Argon2Conf)
+}
+
+func (c Argon2Constraint) String() string {
+	return fmt.Sprintf("%s %v %d", c.VarName, c.Rel, c.Bound)
+}
+
+type Argon2iAcc struct {
+	Constraints []AbstractArgon2iConstraint
+	Type AccType
+}
+
+func NewArgon2iAcc(t AccType, constraints ...AbstractArgon2iConstraint)Argon2iAcc {
+	return Argon2iAcc{
+		Constraints: constraints,
+		Type: t,
+	}
+}
+
+func (acc Argon2iAcc) CheckArgon2i(data *Argon2iData) bool{
+	switch acc.Type {
+	case Disjunction:
+		for _, c := range acc.Constraints {
+			if c.CheckArgon2i(data) {
+				return true
+			}
 		}
-		return c(aHasher.Argon2Conf)
+		return false
+	case Conjunction:
+		for _, c := range acc.Constraints {
+			if !c.CheckArgon2i(data) {
+				return false
+			}
+		}
+		return true
+	default:
+		log.Printf("gopherbounce/argon2i: Invalid accumulator type: %v\n", acc.Type)
+		return false
 	}
 }
 
-func argon2Uint32Constraint(selector func(*Argon2Conf) uint32, bound uint32, relation BinRelation) Argon2Constraint {
-	return func(c *Argon2Conf) bool {
-		a := uint64(selector(c))
-		b := uint64(bound)
-		return CompareUint(a, b, relation)
+type Argon2idAcc struct {
+	Constraints []AbstractArgon2idConstraint
+	Type AccType
+}
+
+func NewArgon2idAcc(t AccType, constraints ...AbstractArgon2idConstraint)Argon2idAcc {
+	return Argon2idAcc{
+		Constraints: constraints,
+		Type: t,
 	}
 }
 
-func argon2Uint8Constraint(selector func(*Argon2Conf) uint8, bound uint8, relation BinRelation) Argon2Constraint {
-	return func(c *Argon2Conf) bool {
-		a := uint64(selector(c))
-		b := uint64(bound)
-		return CompareUint(a, b, relation)
-	}
-}
-
-// Argon2TimeConstraint is a constraint that checks if Time RELATION bound.
-func Argon2TimeConstraint(bound uint32, relation BinRelation) Argon2Constraint {
-	selector := func(c *Argon2Conf) uint32 {
-		return c.Time
-	}
-	return argon2Uint32Constraint(selector, bound, relation)
-}
-
-// Argon2MemoryConstraint is a constraint that checks if Memory RELATION bound.
-func Argon2MemoryConstraint(bound uint32, relation BinRelation) Argon2Constraint {
-	selector := func(c *Argon2Conf) uint32 {
-		return c.Memory
-	}
-	return argon2Uint32Constraint(selector, bound, relation)
-}
-
-// Argon2KeyLenConstraint is a constraint that checks if KeyLen RELATION bound.
-func Argon2KeyLenConstraint(bound uint32, relation BinRelation) Argon2Constraint {
-	selector := func(c *Argon2Conf) uint32 {
-		return c.KeyLen
-	}
-	return argon2Uint32Constraint(selector, bound, relation)
-}
-
-// Argon2ThreadsConstraint is a constraint that checks if
-// Threads RELATION bound.
-func Argon2ThreadsConstraint(bound uint8, relation BinRelation) Argon2Constraint {
-	selector := func(c *Argon2Conf) uint8 {
-		return c.Threads
-	}
-	return argon2Uint8Constraint(selector, bound, relation)
-}
-
-// ConstraintInfo describes "meta" information about constraints. Because
-// constraints are functions it's not easy to get a human readable version
-// of a constraint. This type helps with that. The left-hand side describes
-// the variable name used for the relation (like "Cost") and the right-hand side
-// the bound of the constraint. For example the constraint cost < 10 would be
-// described as {"cost" 10 Less}.
-type ConstraintInfo struct {
-	LHS      string
-	RHS      interface{}
-	Relation BinRelation
-}
-
-// NewConstraintInfo returns a new constraint info.
-func NewConstraintInfo(lhs string, rhs interface{}, rel BinRelation) *ConstraintInfo {
-	return &ConstraintInfo{
-		LHS:      lhs,
-		RHS:      rhs,
-		Relation: rel,
+func (acc Argon2idAcc) CheckArgon2i(data *Argon2idData) bool{
+	switch acc.Type {
+	case Disjunction:
+		for _, c := range acc.Constraints {
+			if c.CheckArgon2id(data) {
+				return true
+			}
+		}
+		return false
+	case Conjunction:
+		for _, c := range acc.Constraints {
+			if !c.CheckArgon2id(data) {
+				return false
+			}
+		}
+		return true
+	default:
+		log.Printf("gopherbounce/argon2i: Invalid accumulator type: %v\n", acc.Type)
+		return false
 	}
 }
