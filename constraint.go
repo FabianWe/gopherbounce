@@ -1,4 +1,4 @@
-// Copyright 2018 Fabian Wenzelmann
+// Copyright 2018, 2019 Fabian Wenzelmann
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -383,5 +383,71 @@ func (acc Argon2idAcc) CheckArgon2i(data *Argon2idData) bool{
 	default:
 		log.Printf("gopherbounce/argon2i: Invalid accumulator type: %v\n", acc.Type)
 		return false
+	}
+}
+
+type MultiConstraint struct {
+	BcryptConstraint AbstractBcryptConstraint
+	ScryptConstraint AbstractScryptConstraint
+	Argon2iConstraint AbstractArgon2iConstraint
+	Argon2idConstraint AbstractArgon2idConstraint
+	DefaultConstraint Constraint
+}
+
+func NewMultiConstraint() *MultiConstraint {
+	return &MultiConstraint{}
+}
+
+func (c *MultiConstraint) checkDefault(hashed []byte) bool {
+	if c.DefaultConstraint == nil {
+		return false
+	}
+	return c.DefaultConstraint.Check(hashed)
+}
+
+func (c *MultiConstraint ) Check(hashed []byte) bool {
+	switch GuessAlg(hashed) {
+	case BcryptAlg:
+		if c.BcryptConstraint == nil {
+			return c.checkDefault(hashed)
+		}
+		conf, err := ParseBcryptConf(hashed)
+		if err != nil {
+			log.Println("gopherbounce/constraint: Warning, can't parse bcrypt conf", err)
+			return false
+		}
+		return c.BcryptConstraint.CheckBcrypt(conf)
+	case ScryptAlg:
+		if c.ScryptConstraint == nil {
+			return c.checkDefault(hashed)
+		}
+		data, err := ParseScryptData(hashed)
+		if err != nil {
+			log.Println("gopherbounce/constraint: Warning, can't parse scrypt data", err)
+			return false
+		}
+		return c.ScryptConstraint.CheckScrypt(data)
+	case Argon2iAlg:
+		if c.Argon2iConstraint == nil {
+			return c.checkDefault(hashed)
+		}
+		data, err := ParseArgon2iData(hashed)
+		if err != nil {
+			log.Println("gopherbounce/constraint: Warning, can't parse argon2i data", err)
+			return false
+		}
+		return c.Argon2iConstraint.CheckArgon2i(data)
+	case Argon2idAlg:
+		if c.Argon2idConstraint == nil {
+			return c.checkDefault(hashed)
+		}
+		data, err := ParseArgon2idData(hashed)
+		if err != nil {
+			log.Println("gopherbounce/constraint: Warning, can't parse argon2id data", err)
+			return false
+		}
+		return c.Argon2idConstraint.CheckArgon2id(data)
+	default:
+		return c.checkDefault(hashed)
 	}
 }
