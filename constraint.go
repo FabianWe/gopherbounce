@@ -114,17 +114,22 @@ func CompareUint(a, b uint64, rel BinRelation) bool {
 	}
 }
 
+// AccType is an accumlator type used to combine constraints.
+// Constraints can be a Conjunction (and) or Disjunction (or).
 type AccType int
 
 const (
+	// Disjunction is an or connection.
 	Disjunction AccType = iota
+	// Conjunction is an and connection.
 	Conjunction
 )
 
 // Constraint describes a property a hasher must have.
 // Usually they inclucde a restriction on the type of the hasher and
 // restrictions on the hasher's parameters. Like: A bcrypt hasher with
-// cost < 10. Constraints are used to find hashes the should be renewed.
+// cost < 10. Constraints are used to find hashes that should be renewed /
+// replaced.
 // A constraints check function gets a hashed entry as input and decides
 // what to do with it, like decoding it. Usually there are accumlator functions
 // to avoid decoding an entry again and again.
@@ -132,15 +137,19 @@ type Constraint interface {
 	Check(hashed []byte) bool
 }
 
+// AbstractBcryptConstraint is a constraint based on bcrypt configs.
 type AbstractBcryptConstraint interface {
 	CheckBcrypt(conf *BcryptConf) bool
 }
 
+// BcryptConstraint implements AbstractBcryptConstraint and imposes a
+// restriction on the cost of the config.
 type BcryptConstraint struct {
 	CostBound int64
 	Rel       BinRelation
 }
 
+// NewBcryptConstraint returns a new BcryptConstraint.
 func NewBcryptConstraint(bound int, rel BinRelation) BcryptConstraint {
 	return BcryptConstraint{
 		CostBound: int64(bound),
@@ -148,6 +157,7 @@ func NewBcryptConstraint(bound int, rel BinRelation) BcryptConstraint {
 	}
 }
 
+// CheckBcrypt checks the cost according to the provided relation.
 func (c BcryptConstraint) CheckBcrypt(conf *BcryptConf) bool {
 	return CompareInt(int64(conf.Cost), c.CostBound, c.Rel)
 }
@@ -156,18 +166,23 @@ func (c BcryptConstraint) String() string {
 	return fmt.Sprintf("Cost %v %d", c.Rel, c.CostBound)
 }
 
+// BcryptAcc is an accumulation of bcrypt constraints.
+// It implements AbstractBcryptConstraint.
 type BcryptAcc struct {
 	Constraints []AbstractBcryptConstraint
-	Type AccType
+	Type        AccType
 }
 
+// NewBcryptAcc returns a new BcryptAcc given the accumulation type and
+// the constraints it's composed of.
 func NewBcryptAcc(t AccType, constraints ...AbstractBcryptConstraint) BcryptAcc {
 	return BcryptAcc{
 		Constraints: constraints,
-		Type: t,
+		Type:        t,
 	}
 }
 
+// CheckBcrypt composes the constraints based on the accumulation type.
 func (acc BcryptAcc) CheckBcrypt(conf *BcryptConf) bool {
 	switch acc.Type {
 	case Disjunction:
@@ -190,16 +205,26 @@ func (acc BcryptAcc) CheckBcrypt(conf *BcryptConf) bool {
 	}
 }
 
+// AbstractScryptConstraint is a constraint based on scrypt data.
 type AbstractScryptConstraint interface {
 	CheckScrypt(data *ScryptData) bool
 }
 
+// ScryptConstraint implements AbstractScryptConstraint and imposes a
+// restriction on one of the parameters. The parameter is describec by the
+// string name.
+// It imposes the restriction [VarName] [Rel] [Bound]. For example
+// n < 32768.
+//
+// VarName must be either n, r, p or KeyLen.
 type ScryptConstraint struct {
 	Bound   int64
 	VarName string
 	Rel     BinRelation
 }
 
+// NewScryptConstraint returns a new ScryptConstraint. It does not check if
+// varName is valid.
 func NewScryptConstraint(bound int64, varName string, rel BinRelation) ScryptConstraint {
 	return ScryptConstraint{
 		Bound:   bound,
@@ -208,6 +233,8 @@ func NewScryptConstraint(bound int64, varName string, rel BinRelation) ScryptCon
 	}
 }
 
+// CheckScrypt checks the scrypt data based on the variable name, relation
+// and bound.
 func (c ScryptConstraint) CheckScrypt(data *ScryptData) bool {
 	var lhs int
 	switch c.VarName {
@@ -231,18 +258,23 @@ func (c ScryptConstraint) String() string {
 	return fmt.Sprintf("%s %v %d", c.VarName, c.Rel, c.Bound)
 }
 
+// ScryptAcc is an accumulation of bcrypt constraints.
+// It implements AbstractScryptConstraint.
 type ScryptAcc struct {
 	Constraints []AbstractScryptConstraint
-	Type AccType
+	Type        AccType
 }
 
+// NewScryptAcc returns a new ScryptAcc given the accumulation type and
+// the constraints it's composed of.
 func NewScryptAcc(t AccType, constraints ...AbstractScryptConstraint) ScryptAcc {
 	return ScryptAcc{
 		Constraints: constraints,
-		Type: t,
+		Type:        t,
 	}
 }
 
+// CheckScrypt composes the constraints based on the accumulation type.
 func (acc ScryptAcc) CheckScrypt(data *ScryptData) bool {
 	switch acc.Type {
 	case Disjunction:
@@ -265,20 +297,32 @@ func (acc ScryptAcc) CheckScrypt(data *ScryptData) bool {
 	}
 }
 
+// AbstractArgon2iConstraint is a constraint based on argon2i data.
 type AbstractArgon2iConstraint interface {
 	CheckArgon2i(data *Argon2iData) bool
 }
 
+// AbstractArgon2idConstraint is a constraint based on argon2id data.
 type AbstractArgon2idConstraint interface {
 	CheckArgon2id(data *Argon2idData) bool
 }
 
+// Argon2Constraint imposes a restriction on one of the parameters of
+// an Argon2Conf. The parameter is describec by the string name.
+// It imposes the restriction [VarName] [Rel] [Bound]. For example
+// time < 1.
+//
+// It implements both AbstractArgon2iConstraint and AbstractArgon2idConstraint.
+//
+// VarName must be either "time", "memory", "keylen" or "threads".
 type Argon2Constraint struct {
 	Bound   uint64
 	VarName string
 	Rel     BinRelation
 }
 
+// NewArgon2Constraint returns a new Argon2Constraint. It does not check if
+// varName is valid.
 func NewArgon2Constraint(bound uint64, varName string, rel BinRelation) Argon2Constraint {
 	return Argon2Constraint{
 		Bound:   bound,
@@ -289,7 +333,7 @@ func NewArgon2Constraint(bound uint64, varName string, rel BinRelation) Argon2Co
 
 func (c Argon2Constraint) checkConf(data *Argon2Conf) bool {
 	var lhs uint64
-	switch c.VarName {
+	switch strings.ToLower(c.VarName) {
 	case "time":
 		lhs = uint64(data.Time)
 	case "memory":
@@ -306,10 +350,14 @@ func (c Argon2Constraint) checkConf(data *Argon2Conf) bool {
 	return CompareUint(lhs, c.Bound, c.Rel)
 }
 
+// // CheckArgon2i checks the argon2 data based on the variable name, relation
+// and bound.
 func (c Argon2Constraint) CheckArgon2i(data *Argon2iData) bool {
 	return c.checkConf(data.Argon2Conf)
 }
 
+// CheckArgon2id checks the argon2 data based on the variable name, relation
+// and bound.
 func (c Argon2Constraint) CheckArgon2id(data *Argon2idData) bool {
 	return c.checkConf(data.Argon2Conf)
 }
@@ -318,19 +366,24 @@ func (c Argon2Constraint) String() string {
 	return fmt.Sprintf("%s %v %d", c.VarName, c.Rel, c.Bound)
 }
 
+// Argon2iAcc is an accumulation of argon2i constraints.
+// It implements AbstractArgon2iConstraint.
 type Argon2iAcc struct {
 	Constraints []AbstractArgon2iConstraint
-	Type AccType
+	Type        AccType
 }
 
-func NewArgon2iAcc(t AccType, constraints ...AbstractArgon2iConstraint)Argon2iAcc {
+// NewArgon2iAcc returns a new Argon2iAcc given the accumulation type and
+// the constraints it's composed of.
+func NewArgon2iAcc(t AccType, constraints ...AbstractArgon2iConstraint) Argon2iAcc {
 	return Argon2iAcc{
 		Constraints: constraints,
-		Type: t,
+		Type:        t,
 	}
 }
 
-func (acc Argon2iAcc) CheckArgon2i(data *Argon2iData) bool{
+// CheckArgon2i composes the constraints based on the accumulation type.
+func (acc Argon2iAcc) CheckArgon2i(data *Argon2iData) bool {
 	switch acc.Type {
 	case Disjunction:
 		for _, c := range acc.Constraints {
@@ -352,19 +405,24 @@ func (acc Argon2iAcc) CheckArgon2i(data *Argon2iData) bool{
 	}
 }
 
+// Argon2idAcc is an accumulation of argon2id constraints.
+// It implements AbstractArgon2idConstraint.
 type Argon2idAcc struct {
 	Constraints []AbstractArgon2idConstraint
-	Type AccType
+	Type        AccType
 }
 
-func NewArgon2idAcc(t AccType, constraints ...AbstractArgon2idConstraint)Argon2idAcc {
+// NewArgon2idAcc returns a new Argon2idAcc given the accumulation type and
+// the constraints it's composed of.
+func NewArgon2idAcc(t AccType, constraints ...AbstractArgon2idConstraint) Argon2idAcc {
 	return Argon2idAcc{
 		Constraints: constraints,
-		Type: t,
+		Type:        t,
 	}
 }
 
-func (acc Argon2idAcc) CheckArgon2i(data *Argon2idData) bool{
+// CheckArgon2id composes the constraints based on the accumulation type.
+func (acc Argon2idAcc) CheckArgon2id(data *Argon2idData) bool {
 	switch acc.Type {
 	case Disjunction:
 		for _, c := range acc.Constraints {
@@ -386,14 +444,29 @@ func (acc Argon2idAcc) CheckArgon2i(data *Argon2idData) bool{
 	}
 }
 
+// MultiConstraint composes the basic constraint types (bcrypt, scrypt argon2i
+// and argon2id).
+// It implements the general Constraint interface.
+//
+// It's behaviour is as follows: It checks the hashed string and decides
+// which algorithm it belongs to. It then decodes the config / data from the
+// hash and passes it to the corresponding constraint.
+//
+// For example bcrypt hashes (beginning with $2a$) are passed to the
+// BcryptConstraint. The config is parsed from that hash.
+//
+// It also has a "fallback" constraint that is applied if the hashing algorithm
+// is unkown.
 type MultiConstraint struct {
-	BcryptConstraint AbstractBcryptConstraint
-	ScryptConstraint AbstractScryptConstraint
-	Argon2iConstraint AbstractArgon2iConstraint
+	BcryptConstraint   AbstractBcryptConstraint
+	ScryptConstraint   AbstractScryptConstraint
+	Argon2iConstraint  AbstractArgon2iConstraint
 	Argon2idConstraint AbstractArgon2idConstraint
-	DefaultConstraint Constraint
+	DefaultConstraint  Constraint
 }
 
+// NewMultiConstraint returns a new MultiConstraint where all constraints are
+// set to nil, that is it always returns false.
 func NewMultiConstraint() *MultiConstraint {
 	return &MultiConstraint{}
 }
@@ -405,7 +478,8 @@ func (c *MultiConstraint) checkDefault(hashed []byte) bool {
 	return c.DefaultConstraint.Check(hashed)
 }
 
-func (c *MultiConstraint ) Check(hashed []byte) bool {
+// Check implements the Constraint interface.
+func (c *MultiConstraint) Check(hashed []byte) bool {
 	switch GuessAlg(hashed) {
 	case BcryptAlg:
 		if c.BcryptConstraint == nil {
