@@ -25,6 +25,38 @@ type PHC struct {
 	Salt, Hash string
 }
 
+// I think a pool might be good here, but should be fine...
+
+func (phc *PHC) Encode(info *PHCInfo) (string, error) {
+	if len(phc.Params) != len(info.ParamInfos) {
+		return "", fmt.Errorf("gopherbounce/phc: Parameter values and number of parameter description doesn't match")
+	}
+	var result strings.Builder
+	fmt.Fprint(&result, "$", phc.ID)
+	nonEmpty := -1
+	for i, p := range phc.Params {
+		if p != "" {
+			nonEmpty = i
+		}
+		break
+	}
+	if nonEmpty >= 0 {
+		fmt.Fprintf(&result, "$%s=%s", info.ParamInfos[nonEmpty].Name, phc.Params[nonEmpty])
+		for i := nonEmpty + 1; i < len(info.ParamInfos); i++ {
+			if phc.Params[i] != "" {
+				fmt.Fprintf(&result, ",%s=%s", info.ParamInfos[i].Name, phc.Params[i])
+			}
+		}
+	}
+	if phc.Salt != "" {
+		fmt.Fprint(&result, "$", phc.Salt)
+		if phc.Hash != "" {
+			fmt.Fprint(&result, "$", phc.Hash)
+		}
+	}
+	return result.String(), nil
+}
+
 type PHCError string
 
 func NewPHCError(s string) PHCError {

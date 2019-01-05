@@ -36,10 +36,10 @@ const (
 	Argon2idName = "argon2id"
 
 	// BcryptPrefix is the algorithm prefix in the hash encoding.
-	BcryptPrefix = "$2a$"
+	BcryptPrefix = "$2a"
 
 	// ScryptPrefix is the algorithm prefix in the hash encoding.
-	ScryptPrefix = "$4s$"
+	ScryptPrefix = "$scrypt"
 
 	// Argon2iPrefix is the algorithm prefix in the hash encoding.
 	Argon2iPrefix = "$argon2i$"

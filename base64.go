@@ -17,6 +17,8 @@ package gopherbounce
 import "encoding/base64"
 
 // Base64Encoding is the internal reprensetation of a base64 encoding.
+// The base64 encoding / decoding is inspired by
+// https://github.com/golang/crypto/blob/master/bcrypt/base64.go
 type Base64Encoding struct {
 	Alphabet string
 	Encoding *base64.Encoding
@@ -41,11 +43,18 @@ func (enc *Base64Encoding) Base64Encode(src []byte) []byte {
 	n := enc.Encoding.EncodedLen(len(src))
 	dst := make([]byte, n)
 	enc.Encoding.Encode(dst, src)
+	for n > 0 && dst[n-1] == '=' {
+		n--
+	}
 	return dst[:n]
 }
 
 // Base64Decode decodes the source using the alphabet.
 func (enc *Base64Encoding) Base64Decode(src []byte) ([]byte, error) {
+	numOfEquals := 4 - (len(src) % 4)
+	for i := 0; i < numOfEquals; i++ {
+		src = append(src, '=')
+	}
 	dst := make([]byte, enc.Encoding.DecodedLen(len(src)))
 	n, err := enc.Encoding.Decode(dst, src)
 	if err != nil {
