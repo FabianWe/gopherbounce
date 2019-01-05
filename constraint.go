@@ -349,7 +349,7 @@ type AbstractArgon2idConstraint interface {
 // Argon2Constraint imposes a restriction on one of the parameters of
 // an Argon2Conf. The parameter is describec by the string name.
 // It imposes the restriction [VarName] [Rel] [Bound]. For example
-// time < 1.
+// time < 2.
 //
 // It implements both AbstractArgon2iConstraint and AbstractArgon2idConstraint.
 //
@@ -488,8 +488,12 @@ func (acc Argon2idAcc) CheckArgon2id(data *Argon2idData) bool {
 // It implements the general Constraint interface.
 //
 // It's behaviour is as follows: It checks the hashed string and decides
-// which algorithm it belongs to. It then decodes the config / data from the
-// hash and passes it to the corresponding constraint.
+// which algorithm it belongs to.
+// First it checks if there is a general constraint for this algorithm.
+// For example if bcrypt should be completely ignored you can use
+// AddAlgConstraint(BcryptAlg). If this is the case it returns true.
+// Otherwise it decodes the config / data from the hash and passes it to the
+// corresponding constraint.
 //
 // For example bcrypt hashes (beginning with $2a$) are passed to the
 // BcryptConstraint. The config is parsed from that hash.
@@ -497,6 +501,7 @@ func (acc Argon2idAcc) CheckArgon2id(data *Argon2idData) bool {
 // It also has a "fallback" constraint that is applied if the hashing algorithm
 // is unkown.
 type MultiConstraint struct {
+	algConstraints     map[HashAlg]struct{}
 	BcryptConstraint   AbstractBcryptConstraint
 	ScryptConstraint   AbstractScryptConstraint
 	Argon2iConstraint  AbstractArgon2iConstraint
@@ -507,7 +512,28 @@ type MultiConstraint struct {
 // NewMultiConstraint returns a new MultiConstraint where all constraints are
 // set to nil, that is it always returns false.
 func NewMultiConstraint() *MultiConstraint {
-	return &MultiConstraint{}
+	return &MultiConstraint{
+		algConstraints: make(map[HashAlg]struct{}, 4),
+	}
+}
+
+// AddAlgConstraint adds a constraint that all hashes of algorithm alg should
+// be ignored.
+func (c *MultiConstraint) AddAlgConstraint(alg HashAlg) {
+	c.algConstraints[alg] = struct{}{}
+}
+
+// RemoveAlgConstraint removes the constraint that all hashes of algorithm
+// alg should be ignored.
+func (c *MultiConstraint) RemoveAlgConstraint(alg HashAlg) {
+	delete(c.algConstraints, alg)
+}
+
+// HasAlgConstraint checks if there is a constraint that all hashes of algorithm
+// alg should be ignored.
+func (c *MultiConstraint) HasAlgConstraint(alg HashAlg) bool {
+	_, has := c.algConstraints[alg]
+	return has
 }
 
 func (c *MultiConstraint) checkDefault(hashed []byte) bool {
@@ -519,7 +545,13 @@ func (c *MultiConstraint) checkDefault(hashed []byte) bool {
 
 // Check implements the Constraint interface.
 func (c *MultiConstraint) Check(hashed []byte) bool {
-	switch GuessAlg(hashed) {
+	guess := GuessAlg(hashed)
+	// if there is a constraint that this algorithm should be completely
+	// ignored return true
+	if c.HasAlgConstraint(guess) {
+		return true
+	}
+	switch guess {
 	case BcryptAlg:
 		if c.BcryptConstraint == nil {
 			return c.checkDefault(hashed)
