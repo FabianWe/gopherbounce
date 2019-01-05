@@ -5,6 +5,9 @@ Cost < 12
 KeyLen < 12
 R <= 9
 
+ignore bcrypt
+
+
 [argon2i = bar]
 Time < 4
 Memory = 2

@@ -241,6 +241,24 @@ L:
 			if len(line) == 0 || strings.HasPrefix(line, "#") {
 				continue L
 			}
+
+			// first we try ignore algorithm regex
+			ignoreAlgName, ignoreAlgErr := ParseAlgIgnoreLine(line)
+			if ignoreAlgErr == nil {
+				// success, add
+				// get algorithm type
+				var ignoreAlg HashAlg
+				ignoreAlg, ignoreAlgErr = ParseAlg(ignoreAlgName)
+				// if there is an error now there is a real error
+				if ignoreAlgErr != nil {
+					return nil, NewConstraintSyntaxError("Invalid algorithm name")
+				}
+				result.AlgConstraints = append(result.AlgConstraints, ignoreAlg)
+				// we continue the loop, state remains unchanged
+				// if err != nil we simply continue after this if
+				continue L
+			}
+
 			// must be a valid heading
 			// we ignore the name
 			algorithm, _, err := ParseHeadLine(line)
