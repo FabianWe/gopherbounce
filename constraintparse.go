@@ -42,12 +42,16 @@ var (
 	ConstraintLineRx = regexp.MustCompile(`^\s*([a-zA-Z]+)\s+(<|>|<=|>=|=|≤|≥)\s+(-?\d+)\s*$`)
 	// HeadLineRx is the regex used to parse a heading line.
 	HeadLineRx = regexp.MustCompile(`^\s*\[\s*(\w+)(\s*=\s*(\w+))?\s*\]\s*$`)
+	// IgnoreAlgLineRx is the regex used to parse a algorithm ignore line.
+	IgnoreAlgLineRx = regexp.MustCompile(`^\s*ignore\s+([a-zA-Z]+)\s*$`)
 )
 
 // ParseConstraintLine parses a single line constraint line (with
 // ConstraintLineRx).
 // It returns the lhs and rhs as a string.
 // Example of a line "cost < 10" that would return "cost" "10" Less.
+// This function does not check if the identifiers are valid. For example
+// "foo < 10" would be valid.
 func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err error) {
 	match := ConstraintLineRx.FindStringSubmatch(line)
 	if len(match) == 0 {
@@ -67,6 +71,8 @@ func ParseConstraintLine(line string) (lhs, rhs string, rel BinRelation, err err
 // Example of a line "[bcypt]" or with a name [scrypt = foo].
 // The first one yields to "bcrypt" and the empty string, the second to
 // "scrypt" and "foo".
+// This function does not check if the algorithm name is valid, for example
+// "[foo]" would be valid.
 func ParseHeadLine(line string) (algorithm, name string, err error) {
 	match := HeadLineRx.FindStringSubmatch(line)
 	switch len(match) {
@@ -76,6 +82,23 @@ func ParseHeadLine(line string) (algorithm, name string, err error) {
 		algorithm, name = match[1], match[3]
 	default:
 		err = fmt.Errorf("Internal error: Regex match in gopherbounce.ParseHeadLine has length %d", len(match))
+	}
+	return
+}
+
+// ParseAlgIgnoreLine parses a algorithm ignore line (with IgnoreAlgLineRx).
+// Example of a line: "ignore bcrypt". This would return "bcrypt".
+// This function does not check if the algorithm name is valid, for example
+// "ignore foo" would be valid.
+func ParseAlgIgnoreLine(line string) (algorithm string, err error) {
+	match := IgnoreAlgLineRx.FindStringSubmatch(line)
+	switch len(match) {
+	case 0:
+		err = NewConstraintSyntaxError("Can't match line")
+	case 2:
+		algorithm = match[1]
+	default:
+		err = fmt.Errorf("Internal error: Regex match in gopherbounce.ParseAlgIgnoreLine has length %d", len(match))
 	}
 	return
 }
@@ -191,6 +214,7 @@ func ParseArgon2Cons(line string) (Argon2Constraint, error) {
 // scrypt, argon2i and argon2id). Such a collection can be parsed from
 // a file (or any reader with the correct syntax) with ParseConstraints.
 type ConstraintsCol struct {
+	AlgConstraints      []HashAlg
 	BcryptConstraints   []BcryptConstraint
 	ScryptConstraints   []ScryptConstraint
 	Argon2iConstraints  []Argon2Constraint

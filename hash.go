@@ -17,6 +17,7 @@ package gopherbounce
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -152,6 +153,23 @@ const (
 	// Argon2idAlg stands for the argon2id algorithm.
 	Argon2idAlg
 )
+
+// ParseAlg parses the algorithm from the algorith name.
+// Valid names are "bcrypt", "scrypt", "argon2i" and "argon2id".
+func ParseAlg(name string) (HashAlg, error) {
+	switch strings.ToLower(name) {
+	case strings.ToLower(BcryptName):
+		return BcryptAlg, nil
+	case strings.ToLower(ScryptName):
+		return ScryptAlg, nil
+	case strings.ToLower(Argon2iName):
+		return Argon2iAlg, nil
+	case strings.ToLower(Argon2idName):
+		return Argon2idAlg, nil
+	default:
+		return -1, fmt.Errorf("Invalid algorithm name: %s", name)
+	}
+}
 
 // GuessAlg returns the algorithm used to create the specified hashed version.
 // If the algorithm is unknown it returns -1.
