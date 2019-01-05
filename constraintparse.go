@@ -232,7 +232,7 @@ func ParseConstraints(r io.Reader) (*ConstraintsCol, error) {
 	result := NewConstraintCol()
 	scanner := bufio.NewScanner(r)
 	state := 0
-	lastAlgName := ""
+	var lastAlg HashAlg = -1
 L:
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -247,13 +247,12 @@ L:
 			if err != nil {
 				return nil, err
 			}
-			switch algorithm {
-			case BcryptName, ScryptName, Argon2iName, Argon2idName:
-				lastAlgName = algorithm
-				state = 1
-			default:
+			alg, err := ParseAlg(algorithm)
+			if err != nil {
 				return nil, NewConstraintSyntaxError("Invalid algorithm name")
 			}
+			lastAlg = alg
+			state = 1
 		case 1:
 			// now we must either parse an empty line (meaning end of block)
 			// or a constraint
@@ -263,39 +262,39 @@ L:
 			if len(line) == 0 {
 				// now we must finish the current block
 				state = 0
-				lastAlgName = ""
+				lastAlg = -1
 				continue L
 			}
 			// len of line is not 0, thus we must parse a constraint, depending on
 			// the last algorithm
 
-			switch lastAlgName {
-			case BcryptName:
+			switch lastAlg {
+			case BcryptAlg:
 				cons, err := ParseBcryptCons(line)
 				if err != nil {
 					return nil, err
 				}
 				result.BcryptConstraints = append(result.BcryptConstraints, cons)
-			case ScryptName:
+			case ScryptAlg:
 				cons, err := ParseScryptCons(line)
 				if err != nil {
 					return nil, err
 				}
 				result.ScryptConstraints = append(result.ScryptConstraints, cons)
-			case Argon2iName:
+			case Argon2iAlg:
 				cons, err := ParseArgon2Cons(line)
 				if err != nil {
 					return nil, err
 				}
 				result.Argon2iConstraints = append(result.Argon2iConstraints, cons)
-			case Argon2idName:
+			case Argon2idAlg:
 				cons, err := ParseArgon2Cons(line)
 				if err != nil {
 					return nil, err
 				}
 				result.Argon2idConstraints = append(result.Argon2idConstraints, cons)
 			default:
-				return nil, fmt.Errorf("Internal error: Parsed an invalid algorithm name: %s", lastAlgName)
+				return nil, fmt.Errorf("Internal error: Parsed an invalid algorithm: %v", lastAlg)
 			}
 		default:
 			return nil, fmt.Errorf("Internal error: Invalid parser state %d", state)
