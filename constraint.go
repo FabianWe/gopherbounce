@@ -525,3 +525,19 @@ func (c *MultiConstraint) Check(hashed []byte) bool {
 		return c.checkDefault(hashed)
 	}
 }
+
+// AlgConstraint implements Constraint and only tests if the hashed string
+// represents a specific type.
+type AlgConstraint HashAlg
+
+// NewAlgConstraint returns a new AlgConstraint that returns true if the
+// algorithm represented by a hashed password is alg.
+func NewAlgConstraint(alg HashAlg) AlgConstraint {
+	return AlgConstraint(alg)
+}
+
+// Check implements the Constraint interface.
+func (c AlgConstraint) Check(hashed []byte) bool {
+	guess := GuessAlg(hashed)
+	return guess == HashAlg(c)
+}
