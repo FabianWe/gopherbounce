@@ -2,6 +2,8 @@
 gopherbounce is a Golang authentication framework. It bundles [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id) under a common interface. It provides easy to use functions for hashing and validating passwords.
 Find the full code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce).
 
+# DO NOT USE THIS LIBRARY YET, IT IS STILL UNDER DEVELOPMENT
+
 ## Installation
 The easiest way: `go get -u github.com/FabianWe/gopherbounce`.
 
