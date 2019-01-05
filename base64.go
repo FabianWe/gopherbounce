@@ -55,10 +55,10 @@ func (enc *Base64Encoding) Base64Decode(src []byte) ([]byte, error) {
 }
 
 // Defaultalphabet is the alphabet used by most algorithms.
-const Defaultalphabet = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+const Defaultalphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 // DefaultEncoding is the internal encoding based on Defaultalphabet.
-var DefaultEncoding = NewBase64Encoding(Defaultalphabet,)
+var DefaultEncoding = NewBase64Encoding(Defaultalphabet)
 
 // Base64Encode encodes the source to base64 using the default encoding.
 func Base64Encode(src []byte) []byte {
