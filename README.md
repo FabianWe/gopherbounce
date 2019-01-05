@@ -34,29 +34,29 @@ For all parameters check the code documentation on [GoDoc](https://godoc.org/git
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
 
 ## Which hash function should I use?
-bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id the default in this package though, I like how argon2id scales even for further hardware improvements.
-So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely.
+bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id is the default in this package though, I like how argon2id scales even for further hardware improvements.
+So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely. scrypt should be fine as well, argon2i should not be
+used, in constrast to argon2id.
 
 ## Validating hashes
 The easiest way to validate hashes is to use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator). They both accept the hashed version of a password and return either a function that can compare passwords with the hashed entry or a [Validator](https://godoc.org/github.com/FabianWe/gopherbounce#Validator) object. See the documentation for more details.
 
 ## Parsing hashes
-The password hashes are encoded in a single string and there are functions to parse to hash strings. For example scrypt may produce the following string: `$4s$5t6drCj5zyGIx8cbf24Bhssg/deIPoIilCIhDVFe.oG=$32768$8$1$dNu7EQwUib2o0spmvj0gHb5o1DKA.lbWk03QqtA2GQC=`. This contains all parameters as well as the key and salt (encoded with base64). This string can be parsed with [ParseScryptData](https://godoc.org/github.com/FabianWe/gopherbounce#ParseScryptData). Similar functions exist for other hashers as well. This is exactly what is done by the Validator implementations by the way.
+The password hashes are encoded in a single string and there are functions to parse these hash strings. For example scrypt may produce the following string: `$4s$5t6drCj5zyGIx8cbf24Bhssg/deIPoIilCIhDVFe.oG=$32768$8$1$dNu7EQwUib2o0spmvj0gHb5o1DKA.lbWk03QqtA2GQC=`. This contains all parameters as well as the key and salt (encoded with base64). This string can be parsed with [ParseScryptData](https://godoc.org/github.com/FabianWe/gopherbounce#ParseScryptData). Similar functions exist for other hashers as well. This is exactly what is done by the Validator implementations by the way.
 
 ## How to embed into an application
 There are some basic rules on how to store user passwords. I'm not a security expert, that should be said for the whole library! I did my best to make everything secure, but that's not a promise! So here's a short recap on how to deal with passwords:
 
  1. Never store the password in clear text, always store hashed versions (as computed by a Hasher)
  2. Store these hashes in a database or in a file. Hashers return `[]byte` and these can be converted to a `string` with `string(hashed)`
- 3. When a user tries to login: Retrieve the stored hashed string, use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator) to compare the hashed version with a clear text password.
+ 3. When a user tries to login: Retrieve the stored hashed string, use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator) to compare the hashed version with a clear text password
  4. Only if the returned error is `nil` accept the password. If any error is returned (no matter which one) assume that the login failed. Check the different errors in the documentation for more details
-.
 5. Use a minimum password length that is always checked on the server-side in web applications
 6. All implemented algorithms compute a cryptographically secure salt and include this salt in the encoding
-7. If you ever have to compare raw keys by yourself, never compare them by iterating over all entries. Always use a constant time compare function such as [subtle/ConstantTimeCompare](https://golang.org/pkg/crypto/subtle/#ConstantTimeCompare).
+7. If you ever have to compare raw keys by yourself, never compare them by iterating over all entries. Always use a constant time compare function such as [subtle/ConstantTimeCompare](https://golang.org/pkg/crypto/subtle/#ConstantTimeCompare)
 
 ## Default Parameters
-This section describes the current default parameter values of the hashers. The cost parameters are rather hight compared with the proposed defaults of the algorithms. Since the documentations are usually some years old I think it's a good idea to increase the parameters. I've tried to reach 241ms computation time for each hash computations.
+This section describes the current default parameter values of the hashers. The cost parameters are rather high compared to the proposed defaults of the algorithms. Since the documentations are usually some years old I think it's a good idea to increase the parameters. I've tried to reach 241ms computation time for each hash computation.
 
 ### bcrypt
 Read details in the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) documentation.
