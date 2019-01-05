@@ -121,7 +121,8 @@ type AccType int
 const (
 	// Disjunction is an or connection.
 	Disjunction AccType = iota
-	// Conjunction is an and connection.
+	// Conjunction is an and connection. Note that an empty Conjunction is always
+	// true.
 	Conjunction
 )
 
@@ -135,6 +136,44 @@ const (
 // to avoid decoding an entry again and again.
 type Constraint interface {
 	Check(hashed []byte) bool
+}
+
+// ConstraintConjunction is a conjunction of Constraints and itself implements
+// the Constraint interface. An empty conjunction is considered true.
+type ConstraintConjunction []Constraint
+
+// NewConstraintConjunction returns a new conjunction.
+func NewConstraintConjunction(constraints ...Constraint) ConstraintConjunction {
+	return ConstraintConjunction(constraints)
+}
+
+// Check checks if all conjuncts are true.
+func (conj ConstraintConjunction) Check(hashed []byte) bool {
+	for _, conjunct := range conj {
+		if !conjunct.Check(hashed) {
+			return false
+		}
+	}
+	return true
+}
+
+// ConstraintDisjunction is a disjunction of Constraints and itself implements
+// the Constraint interface.
+type ConstraintDisjunction []Constraint
+
+// NewConstraintDisjunction returns a new disjunction.
+func NewConstraintDisjunction(constraints ...Constraint) ConstraintDisjunction {
+	return ConstraintDisjunction(constraints)
+}
+
+// Check checks if at least one disjunct is true.
+func (disj ConstraintDisjunction) Check(hashed []byte) bool {
+	for _, conjunct := range disj {
+		if conjunct.Check(hashed) {
+			return true
+		}
+	}
+	return false
 }
 
 // AbstractBcryptConstraint is a constraint based on bcrypt configs.
