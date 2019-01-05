@@ -1,5 +1,3 @@
-
-
 # gopherbounce
 gopherbounce is a Golang authentication framework. It bundles [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id) under a common interface. It provides easy to use functions for hashing and validating passwords.
 Find the full code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce).
@@ -35,7 +33,7 @@ hasher.KeyLen = 64
 For all parameters check the code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce). A list of default parameters can be found below.
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
 
-## Which has function should I use?
+## Which hash function should I use?
 bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id the default in this package though, I like how argon2id scales even for further hardware improvements.
 So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely.
 
@@ -131,8 +129,66 @@ The computed hashes contain the parameters as well as the key (encoded base64) a
 | argon2id  | 32         | 183                 |
 | argon2id  | 64         | 271                 |
 
+## Constraints
+Constraints impose restrictions on the arguments of hashers. That is if a password hash was created with values that now became insecure (better hardware or whatever) or with a hashing algorithm that proved to be insecure these password hashes should be replaced. gopherbounce has a [Constraint](https://godoc.org/github.com/FabianWe/gopherbounce#Constraint) interface for this purpose.
+
+There are several implementations of this interface, here are their usecases:
+
+ - Filter by algorithm: If you used bcrypt all the time but now you think that bcrypt is not safe enough any more use an [AlgConstraint](https://godoc.org/github.com/FabianWe/gopherbounce#AlgConstraint). For example `gopherbounce.NewAlgConstraint(gopherbounce.BcryptAlg)`. This will create a constraint that returns true for all bcrypt hashes.
+ - Filter by algorithm parameters: If you want to find all scrypt hashes that were created with N < 32768 you can use [ScryptConstraint](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptConstraint). This type does not implement the `Constraint` interface directly but implements instead [AbstractScryptConstraint](https://godoc.org/github.com/FabianWe/gopherbounce#AbstractScryptConstraint).  To create the constraint mentioned above use `gopherbounce.NewScryptConstraint(32768, "N", gopherbounce.Less)`. To use it directly as a `Constraint` you can use `MultiConstraint` as explained below. There are also algorithm specific constraints for the other algorithms: [BcryptConstraint](https://godoc.org/github.com/FabianWe/gopherbounce#BcryptConstraint) and [Argon2Constraint](https://godoc.org/github.com/FabianWe/gopherbounce#Argon2Constraint) (for both argon2i and argon2id).
+ - Accumulate algorithm specific constraints: If you want a constraint for scrypt that checks if N < 32768 or r < 8 you can build a disjunction of these two constraints:
+ ```go
+c1 := gopherbounce.NewScryptConstraint(32768, "N", gopherbounce.Less)
+c2 := gopherbounce.NewScryptConstraint(8, "r", gopherbounce.Less)
+c := gopherbounce.NewScryptAcc(gopherbounce.Disjunction, c1, c2)
+ ```
+
+ - An [ScryptAcc](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptAcc)  can be used to combine different scrypt constraints. In this case we create a disjunction. That is if either one of the constraints is true the disjunction is true. `ScryptAcc` itself again implements `AbstractScryptConstraint`. Again there are accumlators for other algorithms: [BcryptAcc](https://godoc.org/github.com/FabianWe/gopherbounce#BcryptAcc),  [Argon2iAcc](https://godoc.org/github.com/FabianWe/gopherbounce#Argon2iAcc),  [Argon2idAcc](https://godoc.org/github.com/FabianWe/gopherbounce#Argon2idAcc)
+ - Use a [MultiConstraint](https://godoc.org/github.com/FabianWe/gopherbounce#MultiConstraint) to use algorithm specific constraints as a general `Constraint`. `MultiConstraint` implements the general `Constraint` interface and performs tests for specific algorithms. See the godoc for more details. It can be used to "convert" an algorithm specific constraint to a general `Constraint`. The example below demonstrates this: The `Check` method of the `MultiConstraint` returns true for all bcrypt hashes and all scrypt hashes where N < 32768 or r < 8:
+```go
+multi := gopherbounce.NewMultiConstraint()
+s1 := gopherbounce.NewScryptConstraint(32768, "N", gopherbounce.Less)
+s2 := gopherbounce.NewScryptConstraint(8, "r", gopherbounce.Less)
+s := gopherbounce.NewScryptAcc(gopherbounce.Disjunction, s1, s2)
+// ignore bcrypt
+multi.AddAlgConstraint(gopherbounce.BcryptAlg)
+// set scrypt constraint
+multi.ScryptConstraint = s
+```
+ - Multiple `Constraint`s can be combined in a [disjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintDisjunction) or [conjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintConjunction).
+ - Note that whenever we use a conjunction ([ConstraintConjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintConjunction) or one of the algorithm specific accumulators) the empty conjunction always returns true.
+### Parsing constraints
+You can also parse constraints from a file (or any reader) with [ParseConstraints](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraints) or [ParseConstraintsFromFile](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraintsFromFile). Here is a small example (the values must not really make sense, it's just a syntax example):
+```
+[bcrypt]
+Cost < 12
+
+[scrypt = foo]
+KeyLen < 12
+R <= 9
+
+ignore bcrypt
+
+[argon2i = bar]
+Time < 4
+Memory = 2
+
+[argon2id]
+Time < 10
+KeyLen = 32
+```
+As you can see there are different blocks and constraints for that block. For example "[scrypt]" followed by constraints for scrypt. Blocks must be separated by  at least one blank line. Instead of a line of the form "[ALG]" a line of the form "ignore ALG" is accepted, for example "ignore bcrypt". The meaning is that bcrypt should be ignored completely.  This function returns all parsed constraints in form of the collection type [ConstraintsCol](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintsCol). The form "[argon2i = bar]" is a named block. Though this is syntactically correct the names are ignored by the parse method.
+
+Whatever you do with the result: The bcrypt constraint "Cost < 12" should be useless because "ignore bcrypt" completely ignores bcrypt. Again, just a syntax example.
+
+The workflow with constraints should be as follows:
+
+ 1. User tries to log in
+ 2. If password is correct try the validator on the hash
+ 3. If validator returns true: Compute new hash (with a more secure hasher) and store the new hash
+
 ## License
-Copyright 2018 Fabian Wenzelmann
+Copyright 2018, 2019 Fabian Wenzelmann
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

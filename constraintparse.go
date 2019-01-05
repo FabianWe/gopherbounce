@@ -213,6 +213,9 @@ func ParseArgon2Cons(line string) (Argon2Constraint, error) {
 // ConstraintsCol is a collection of "standard" constraints (for bcrypt,
 // scrypt, argon2i and argon2id). Such a collection can be parsed from
 // a file (or any reader with the correct syntax) with ParseConstraints.
+//
+// It also stores a list of all algorithms that should be completely ignored
+// (AlgConstraints).
 type ConstraintsCol struct {
 	AlgConstraints      []HashAlg
 	BcryptConstraints   []BcryptConstraint
