@@ -252,7 +252,7 @@ func (phc *PHC) Encode(w io.Writer, info *PHCInfo) (int, error) {
 		// if a hash exists this is an error, hash can only exist if
 		// salt exists
 		if phc.Hash != "" {
-			return result, errors.New("Hash exists without a salt, error")
+			return result, errors.New("gopherbounce/phc: Hash exists without a salt, error")
 		}
 	} else {
 		// salt exists, write hash (if exists)
@@ -344,18 +344,18 @@ func parsePHCIdentifier(s string, minLength, maxLength int,
 			// len(id) is fine here because we have only ascii chars
 			n := len(id)
 			if (minLength > 0 && n < minLength) || (maxLength >= 0 && n > maxLength) {
-				return "", "", NewPHCError(fmt.Sprintf("PHC ID is not valid: Must be of length >= %d and <= %d",
+				return "", "", NewPHCError(fmt.Sprintf("gopherbounce/phc: PHC ID is not valid: Must be of length >= %d and <= %d",
 					minLength, maxLength))
 			}
 			return id, s[index:], nil
 		}
 		if !validate(r) {
-			return "", "", NewPHCError(fmt.Sprintf("Invalid character in ID: %s", string(r)))
+			return "", "", NewPHCError(fmt.Sprintf("gopherbounce/phc: Invalid character in ID: %s", string(r)))
 		}
 	}
 	n := len(s)
 	if (minLength > 0 && n < minLength) || (maxLength >= 0 && n > maxLength) {
-		return "", "", NewPHCError("PHC ID is not valid: Must be of length > 0 and <= 32")
+		return "", "", NewPHCError("gopherbounce/phc: PHC ID is not valid: Must be of length > 0 and <= 32")
 	}
 	return s, "", nil
 }
@@ -405,7 +405,7 @@ func parsePHCParValuePair(s string, info *PHCParamInfo) (string, string, error) 
 		s = s[len(info.Name):]
 		// now s must start with =
 		if !strings.HasPrefix(s, "=") {
-			return "", "", NewPHCError(fmt.Sprintf("No value for parameter %s exists", info.Name))
+			return "", "", NewPHCError(fmt.Sprintf("gopherbounce/phc: No value for parameter %s exists", info.Name))
 		}
 		s = s[len("="):]
 		// now parse the value
@@ -420,7 +420,7 @@ func parsePHCParValuePair(s string, info *PHCParamInfo) (string, string, error) 
 	if info.Optional {
 		return "", s, nil
 	}
-	return "", "", NewPHCError(fmt.Sprintf("Non-optional parameter %s not specified", info.Name))
+	return "", "", NewPHCError(fmt.Sprintf("gopherbounce/phc: Non-optional parameter %s not specified", info.Name))
 }
 
 func parsePHCParams(s string, infos []*PHCParamInfo) ([]string, bool, string, error) {
@@ -445,6 +445,8 @@ func parsePHCParams(s string, infos []*PHCParamInfo) ([]string, bool, string, er
 		any = any || (val != "")
 		s = rest
 	}
+	// TODO is this really correct? does it always check for the correct
+	// number of parameters?
 	return result, any, s, nil
 }
 
@@ -485,9 +487,14 @@ func NewPHCInfo() *PHCInfo {
 	}
 }
 
-// ParsePHC parses a phc string and returns the result as a PHC object.
+// ParsePHCAlternate parses a phc string and returns the result as a PHC object.
 // The info is used to check the format against the input string.
-func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
+// This version is callend "Alternate" because: It was the first draft of a
+// parse function, I wrote another one with less code, which I thought would
+// be slower. It turned out to be faster and is now called ParsePHC.
+// This one is here if we ever decide to build a faster one without string
+// splitting. Maybe some of the code can be used.
+func ParsePHCAlternate(s string, info *PHCInfo) (*PHC, error) {
 	if !strings.HasPrefix(s, "$") {
 		return nil, NewPHCError("gopherbounce.PHCParse: Empty hash string")
 	}
@@ -504,7 +511,7 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 		// in this case the end of the string has been reached
 		// just a quick assert
 		if len(s) > 0 {
-			return nil, NewPHCError("gopherbounce.PHCParse: Assertion failed, parsed id but string is not empty and no \"$\" found")
+			return nil, NewPHCError("gopherbounce/phc: Assertion failed, parsed id but string is not empty and no \"$\" found")
 		}
 		return result, nil
 	}
@@ -522,14 +529,14 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 	// this is a special case, after a value a single comma can happen, we have
 	// to prevent this for the last value
 	if strings.HasPrefix(s, ",") {
-		return nil, NewPHCError("gopherbounce.PHCParse: Invalid parameter / value pair")
+		return nil, NewPHCError("gopherbounce/phc: Invalid parameter / value pair")
 	}
 
 	// now a salt can follow, if not that's okay and we're done
 	if !strings.HasPrefix(s, "$") {
 		// again an Assertion
 		if len(s) > 0 {
-			return nil, NewPHCError("gopherbounce.PHCParse: Assertion failed, parsed params but string is not empty and no \"$\" found")
+			return nil, NewPHCError("gopherbounce/phc: Assertion failed, parsed params but string is not empty and no \"$\" found")
 		}
 		return result, nil
 	}
@@ -537,7 +544,7 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 	// this must only be allowed if we parsed any parameter
 	// this should not happen, but be sure
 	if !anyParam {
-		return nil, NewPHCError("Found additional \"$\" after not parsing any parameters, this should not happen, please report")
+		return nil, NewPHCError("gopherbounce/phc: Found additional \"$\" after not parsing any parameters, this should not happen, please report")
 	}
 	s = s[len("$"):]
 
@@ -552,7 +559,7 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 	if !strings.HasPrefix(s, "$") {
 		// again an Assertion
 		if len(s) > 0 {
-			return nil, NewPHCError("gopherbounce.PHCParse: Assertion failed, parsed params but string is not empty and no \"$\" found")
+			return nil, NewPHCError("gopherbounce/phc: Assertion failed, parsed params but string is not empty and no \"$\" found")
 		}
 		return result, nil
 	}
@@ -568,7 +575,7 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 
 	// this should not happen, we must have reached the end of the string
 	if s != "" {
-		return nil, NewPHCError("gopherbounce.PHCParse: Assertion failed, parsed complete string but rest is not empty")
+		return nil, NewPHCError("gopherbounce/phc: Assertion failed, parsed complete string but rest is not empty")
 	}
 
 	return result, nil
@@ -602,3 +609,134 @@ var (
 		},
 	}
 )
+
+// Alternative parsing, but with cleaner code. Useful for hashes that don't strictly
+// follow the phc verification.
+// First I thought this version is slower than parsing "by hand".
+// Well it turned out it isn't. So this is the new default parser...
+
+// PHCSplitString splits the string according to the separator $.
+func PHCSplitString(s string) []string {
+	return strings.Split(s, "$")
+}
+
+// PHCSplitParam parses a single phc parameter of the form PARAM=VALUE.
+// No validation checking is performed: No test if the param or value is a valid
+// sequence of characters. It just finds the first = in the string and splits
+// accordingly.
+func PHCSplitParam(s string) (string, string, error) {
+	i := strings.Index(s, "=")
+	if i < 0 {
+		return "", "", NewPHCError("gopherbounce/phc: Invalid syntax in phc parameter / value pair")
+	}
+	return s[:i], s[i+1:], nil
+}
+
+// PHCParseParams parses the parameter part from a phc string. That is the
+// list of parameter / value pairs.
+// infos is the information about all parameters, the result is always exactly
+// the size of the infos. Optional parameters are set to "".
+// This function validates all names, the order of the parameters and validates
+// the value as well.
+func PHCParseParams(s string, infos []*PHCParamInfo) ([]string, error) {
+	result := make([]string, len(infos))
+	split := strings.Split(s, ",")
+	splitID := 0
+	for i, info := range infos {
+		// first validate the name
+		if validateErr := PHCValidateParamName(info.Name); validateErr != nil {
+			return nil, validateErr
+		}
+		// split entry
+		if splitID >= len(split) {
+			// if there are no values left, the parameter must be optional
+			if !info.Optional {
+				return nil, NewPHCError(fmt.Sprintf("gopherbounce/phc: Non-optional parameter %s not specified", info.Name))
+			}
+			// parameter is not optional and not given, set result
+			result[i] = ""
+			continue
+		}
+		entry := split[splitID]
+		entryName, entryValue, entryErr := PHCSplitParam(entry)
+		if entryErr != nil {
+			return nil, NewPHCError(entryErr.Error())
+		}
+		// test if entryName is the name we're looking for
+		if entryName == info.Name {
+			// yes, add the value
+			// first validate
+			if validateErr := PHCValidateValue(entryValue, info.MaxLength); validateErr != nil {
+				return nil, validateErr
+			}
+			// set result to the value
+			result[i] = entryValue
+			// we're done with this entry, move on to next
+			splitID++
+		} else {
+			// no, in this case the parameter must be optional because it's not
+			// there
+			if !info.Optional {
+				return nil, NewPHCError(fmt.Sprintf("gopherbounce/phc: Non-optional parameter %s not specified", info.Name))
+			}
+			// optional and not given, set to ""
+			result[i] = ""
+		}
+	}
+	// after we're done: no more entries are allowed to remain in split, otherwise
+	// there is some entry we haven't processed...
+	if splitID != len(split) {
+		return nil, NewPHCError("gopherbounce/phc: Invalid number of parameter / value pairs")
+	}
+	return result, nil
+}
+
+// ParsePHC parses a phc string and returns the result as a PHC object.
+// The info is used to check the format against the input string.
+func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
+	split := PHCSplitString(s)
+	if len(split) == 0 {
+		return nil, NewPHCError("gopherbounce/phc: No algorithm id given")
+	}
+	if split[0] != "" {
+		return nil, NewPHCError("gopherbounce/phc: String does not start with \"$\"")
+	}
+	split = split[1:]
+	result := &PHC{}
+	id := split[0]
+	if validateErr := PHCValidateID(id); validateErr != nil {
+		return nil, validateErr
+	}
+	result.ID = id
+
+	if len(split) < 2 {
+		return result, nil
+	}
+
+	if params, paramsErr := PHCParseParams(split[1], info.ParamInfos); paramsErr != nil {
+		return nil, paramsErr
+	} else {
+		result.Params = params
+	}
+	if len(split) < 3 {
+		return result, nil
+	}
+
+	hash := split[2]
+	if validateErr := PHCValidateHash(hash, info.MinHashLength, info.MaxHashLength); validateErr != nil {
+		return nil, validateErr
+	}
+	result.Hash = hash
+
+	if len(split) < 4 {
+		return result, nil
+	}
+
+	salt := split[3]
+	if validateErr := PHCValidateSalt(salt, info.MinSaltLength, info.MaxSaltLength); validateErr != nil {
+		return nil, validateErr
+	}
+	result.Salt = salt
+
+	return result, nil
+}
