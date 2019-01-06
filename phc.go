@@ -15,7 +15,9 @@
 package gopherbounce
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -40,69 +42,177 @@ type PHC struct {
 	Salt, Hash string
 }
 
-// I think a pool might be good here, but should be fine...
-
-// Encode encodes the pch object to a string. The info contains the
-// specification used for the encoding. Optional parameters (set to the empty
-// string in phc.Params) are not contained in the result.
-func (phc *PHC) Encode(info *PHCInfo) (string, error) {
-	// TODO add error handling: only option parameters empty & length checking
-	if len(phc.Params) != len(info.ParamInfos) {
-		return "", fmt.Errorf("gopherbounce/phc: Parameter values and number of parameter description doesn't match")
+// EncodePHCID writes the algorithm id in the phc format to the writer.
+// The string written is simply "$ID".
+// It returns the number of bytes written.
+func EncodePHCID(w io.Writer, id string) (int, error) {
+	if len(id) >= 32 {
+		return 0, errors.New("Algorithm identifier is too long")
 	}
-	var result strings.Builder
-	fmt.Fprint(&result, "$", phc.ID)
+	return fmt.Fprint(w, "$", id)
+}
+
+// EncodePHCParams writes the pch parameters to the writer.
+// values and infos must be of the same length. See PCH type documentation
+// for more details.
+// If no parameters are written (parameter is empty, all parameters are optional
+// and not given) nothing is written to the writer.
+// It returns the number of bytes written. An error might occur if the
+// parameter values do not match the description (length, non-optional and not
+// given etc.) and if writing to w fails.
+func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, error) {
+	result := 0
+	if len(values) != len(infos) {
+		return result, fmt.Errorf("gopherbounce/phc: Parameter values and number of parameter description don't match")
+	}
 	nonEmpty := -1
-	for i, p := range phc.Params {
+	for i, p := range values {
 		if p == "" {
-			if !info.ParamInfos[i].Optional {
-				return "", fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", info.ParamInfos[i].Name)
+			if !infos[i].Optional {
+				return result, fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", infos[i].Name)
 			}
 		} else {
 			nonEmpty = i
 			break
 		}
 	}
-	if nonEmpty >= 0 {
-		// boundary checking
-		maxLength := info.ParamInfos[nonEmpty].MaxLength
-		if maxLength >= 0 && len(phc.Params[nonEmpty]) > maxLength {
-			return "", fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", info.ParamInfos[nonEmpty].Name, maxLength)
-		}
-		fmt.Fprintf(&result, "$%s=%s", info.ParamInfos[nonEmpty].Name, phc.Params[nonEmpty])
-		for i := nonEmpty + 1; i < len(info.ParamInfos); i++ {
-			nextParam := phc.Params[i]
-			nextInfo := info.ParamInfos[i]
-			if nextParam == "" {
-				if !nextInfo.Optional {
-					return "", fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", nextInfo.Name)
-				}
-			} else {
-				maxLength = nextInfo.MaxLength
-				if maxLength >= 0 && len(nextParam) > maxLength {
-					return "", fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", nextInfo.Name, maxLength)
-				}
-				fmt.Fprintf(&result, ",%s=%s", nextInfo.Name, nextParam)
+	if nonEmpty < 0 {
+		return result, nil
+	}
+	// boundary checking
+	maxLength := infos[nonEmpty].MaxLength
+	if maxLength >= 0 && len(values[nonEmpty]) > maxLength {
+		return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", infos[nonEmpty].Name, maxLength)
+	}
+	// print first
+	firstN, firstErr := fmt.Fprint(w, "$", infos[nonEmpty].Name, "=", values[nonEmpty])
+	result += firstN
+	if firstErr != nil {
+		return result, firstErr
+	}
+	for i := nonEmpty + 1; i < len(infos); i++ {
+		nextParam := values[i]
+		nextInfo := infos[i]
+		if nextParam == "" {
+			if !nextInfo.Optional {
+				return result, fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", nextInfo.Name)
+			}
+		} else {
+			maxLength = nextInfo.MaxLength
+			if maxLength >= 0 && len(nextParam) > maxLength {
+				return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", nextInfo.Name, maxLength)
+			}
+			n, err := fmt.Fprint(w, ",", nextInfo.Name, "=", nextParam)
+			result += n
+			if err != nil {
+				return result, err
 			}
 		}
 	}
-	saltLen := len(phc.Salt)
-	minSalt, maxSalt := info.MinSaltLength, info.MaxSaltLength
-	if (minSalt > 0 && saltLen < minSalt) || (maxSalt >= 0 && saltLen > maxSalt) {
-		return "", fmt.Errorf("gopherbounce/phc: Salt lengt not in the required range, length must be in [%d, %d]", minSalt, maxSalt)
+	return result, nil
+}
+
+// EncodePHCSalt writes the salt to the writer.
+// If the salt is empty nothing is written.
+// It returns the number of bytes written. An error might occur if the salt
+// is invalid (according to min/max length) or if writing to w fails.
+// The length can be < 0 in which case they're ignored.
+func EncodePHCSalt(w io.Writer, salt string, minLength, maxLength int) (int, error) {
+	saltLen := len(salt)
+	if (minLength > 0 && saltLen < minLength) || (maxLength >= 0 && saltLen > maxLength) {
+		return 0, fmt.Errorf("gopherbounce/phc: Salt length not in the required range, length must be in [%d, %d]", minLength, maxLength)
 	}
-	hashLen := len(phc.Hash)
-	minHash, maxHash := info.MinHashLength, info.MaxHashLength
-	if (minHash > 0 && hashLen < minHash) || (maxHash >= 0 && hashLen > maxHash) {
-		return "", fmt.Errorf("gopherbounce/phc: Hash lengt not in the required range, length must be in [%d, %d]", minHash, maxHash)
+	if saltLen == 0 {
+		return 0, nil
 	}
-	if phc.Salt != "" {
-		fmt.Fprint(&result, "$", phc.Salt)
+	return fmt.Fprint(w, "$", salt)
+}
+
+// EncodePHCHash writes the hash to the writer.
+// If the hash is empty nothing is written.
+// It returns the number of bytes written. An error might occur if the hash
+// is invalid (according to min/max length) or if writing to w fails.
+// The length can be < 0 in which case they're ignored.
+func EncodePHCHash(w io.Writer, hash string, minLength, maxLength int) (int, error) {
+	hashLen := len(hash)
+	if (minLength > 0 && hashLen < minLength) || (maxLength >= 0 && hashLen > maxLength) {
+		return 0, fmt.Errorf("gopherbounce/phc: Hash length not in the required range, length must be in [%d, %d]", minLength, maxLength)
+	}
+	if hashLen == 0 {
+		return 0, nil
+	}
+	return fmt.Fprint(w, "$", hash)
+}
+
+// I think a pool might be good here, but should be fine...
+
+// Encode encodes the pch object to a string. The info contains the
+// specification used for the encoding. Optional parameters (set to the empty
+// string in phc.Params) are not contained in the result.
+//
+// If you want to create your own phc-like format you may want to look at the
+// EncodePHC... functions, like EncodePHCParams. It basically combines those
+// methods.
+//
+// It returns the number of bytes written. An error might occur if the
+// parameters do not satisfy the description or if writing to w fails.
+func (phc *PHC) Encode(w io.Writer, info *PHCInfo) (int, error) {
+	result := 0
+	// avoid writing something if even this fails, this will be checked again
+	// later but that's fine
+	if len(phc.Params) != len(info.ParamInfos) {
+		return result, fmt.Errorf("gopherbounce/phc: Parameter values and number of parameter description don't match")
+	}
+
+	// id
+	n, err := EncodePHCID(w, phc.ID)
+	result += n
+	if err != nil {
+		return result, err
+	}
+
+	// params
+	n, err = EncodePHCParams(w, phc.Params, info.ParamInfos)
+	result += n
+	if err != nil {
+		return result, err
+	}
+
+	// salt
+	n, err = EncodePHCSalt(w, phc.Salt, info.MinSaltLength, info.MaxSaltLength)
+	result += n
+	if err != nil {
+		return result, err
+	}
+
+	// only if salt has been written write a hash
+	if n == 0 {
+		// if a hash exists this is an error, hash can only exist if
+		// salt exists
 		if phc.Hash != "" {
-			fmt.Fprint(&result, "$", phc.Hash)
+			return result, errors.New("Hash exists without a salt, error")
+		}
+	} else {
+		// salt exists, write hash (if exists)
+		n, err = EncodePHCHash(w, phc.Hash, info.MinHashLength, info.MaxHashLength)
+		result += n
+		if err != nil {
+			return result, err
 		}
 	}
-	return result.String(), nil
+
+	return result, nil
+}
+
+// EncodeString encodes the pch object to a string. For more details see Encode.
+func (phc *PHC) EncodeString(info *PHCInfo) (string, error) {
+	var builder strings.Builder
+
+	_, err := phc.Encode(&builder, info)
+	if err != nil {
+		return "", err
+	}
+	return builder.String(), nil
 }
 
 // PHCError is returned by the pch parse function.

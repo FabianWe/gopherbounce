@@ -129,7 +129,7 @@ func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 		},
 	}
 
-	res, err := phc.Encode(PHCArgon2Config)
+	res, err := phc.EncodeString(PHCArgon2Config)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 		},
 	}
 
-	res, err := phc.Encode(PHCArgon2Config)
+	res, err := phc.EncodeString(PHCArgon2Config)
 	if err != nil {
 		return nil, err
 	}

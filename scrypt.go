@@ -129,7 +129,7 @@ func (h *ScryptHasher) Generate(password string) ([]byte, error) {
 		Salt:   string(saltEnc),
 		Hash:   string(keyEnc),
 	}
-	res, err := phc.Encode(PHCScryptConfig)
+	res, err := phc.EncodeString(PHCScryptConfig)
 	if err != nil {
 		return nil, err
 	}
