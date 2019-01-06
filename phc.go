@@ -42,13 +42,15 @@ type PHC struct {
 	Salt, Hash string
 }
 
+// PHCValidateID checks if a string is a valid phc id. The function tests
+// if the string has a length of at most 32 and contains only valid characters.
 func PHCValidateID(id string) error {
+	if len(id) > 32 {
+		return errors.New("gopherbounce/phc: Algorithm identifier is too long")
+	}
 	// check if identifier is valid
 	if !phcAllValid(isValidPHCIdentifier, id) {
 		return fmt.Errorf("gopherbounce/phc: Invalid character in phc identifier \"%s\"", id)
-	}
-	if len(id) > 32 {
-		return errors.New("gopherbounce/phc: Algorithm identifier is too long")
 	}
 	return nil
 }
@@ -65,22 +67,28 @@ func EncodePHCID(w io.Writer, id string) (int, error) {
 	return fmt.Fprint(w, "$", id)
 }
 
+// PHCValidateParamName checks if a string is a valid phc parameter name.
+// The function tests if the string has a length of at most 32 and contains
+// only valid characters.
 func PHCValidateParamName(param string) error {
-	if !phcAllValid(isValidPHCParam, param) {
-		return fmt.Errorf("gopherbounce/phc: Invalid parameter name: \"%s\"", param)
-	}
 	if len(param) > 32 {
 		return fmt.Errorf("gopherbounce/phc: Parameter name \"%s\" is too long", param)
+	}
+	if !phcAllValid(isValidPHCParam, param) {
+		return fmt.Errorf("gopherbounce/phc: Invalid parameter name: \"%s\"", param)
 	}
 	return nil
 }
 
+// PHCValidateValue checks if a string is a valid phc parameter value.
+// It cecks if the string only contains valid characters and if the length is
+// not greater than maxLength, MaxLength < 0 meaning that now boundary exists.
 func PHCValidateValue(value string, maxLength int) error {
-	if !phcAllValid(isValidPHCVal, value) {
-		return fmt.Errorf("gopherbounce/phc: Invalid parameter value: \"%s\"", value)
-	}
 	if maxLength >= 0 && len(value) > maxLength {
 		return fmt.Errorf("gopherbounce/phc: Parameter value \"%s\" exceeds max length of %d", value, maxLength)
+	}
+	if !phcAllValid(isValidPHCVal, value) {
+		return fmt.Errorf("gopherbounce/phc: Invalid parameter value: \"%s\"", value)
 	}
 	return nil
 }
@@ -153,6 +161,10 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 	return result, nil
 }
 
+// PHCValidateSalt checks if a string is a valid phc salt.
+// It checks if the string only contains valid characters and if the length
+// of the salt is in the given boundaries. Setting a boundary to -1 means
+// that there is no restriction.
 func PHCValidateSalt(salt string, minLength, maxLength int) error {
 	saltLen := len(salt)
 	if (minLength > 0 && saltLen < minLength) || (maxLength >= 0 && saltLen > maxLength) {
@@ -179,6 +191,10 @@ func EncodePHCSalt(w io.Writer, salt string, minLength, maxLength int) (int, err
 	return fmt.Fprint(w, "$", salt)
 }
 
+// PHCValidateHash checks if a string is a valid phc hash.
+// It checks if the string only contains valid characters and if the length
+// of the hash is in the given boundaries. Setting a boundary to -1 means
+// that there is no restriction.
 func PHCValidateHash(hash string, minLength, maxLength int) error {
 	hashLen := len(hash)
 	if (minLength > 0 && hashLen < minLength) || (maxLength >= 0 && hashLen > maxLength) {
@@ -690,6 +706,13 @@ func PHCParseParams(s string, infos []*PHCParamInfo) ([]string, error) {
 	return result, nil
 }
 
+// ParsePHCFromParts parses a phc (like ParsePHC) from the parts, that is
+// the array of strings after splitting an input on $.
+// This is useful if you have a slightly different encoding for a hash but want
+// to parse it with the phc parser.
+// For example argon2 has an additional field $v=...
+// The argon2 parser splits the string, removes the $v=... and composes
+// the other parts to a new string slice that is used on this function.
 func ParsePHCFromParts(split []string, info *PHCInfo) (*PHC, error) {
 	if len(split) == 0 {
 		return nil, NewPHCError("gopherbounce/phc: No algorithm id given")

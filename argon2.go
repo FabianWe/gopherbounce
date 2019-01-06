@@ -250,7 +250,7 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	return []byte(res), nil
 }
 
-func ParseArgon2PHC(hashed []byte) (*PHC, error) {
+func parseArgon2PHC(hashed []byte) (*PHC, error) {
 	s := string(hashed)
 	// we have to take care of the additional v=... field
 	// thus we first split the phc string, then take the version field out
@@ -278,7 +278,7 @@ func ParseArgon2PHC(hashed []byte) (*PHC, error) {
 }
 
 func ParseArgon2Conf(hashed []byte) (*PHC, *Argon2Conf, error) {
-	parsed, err := ParseArgon2PHC(hashed)
+	parsed, err := parseArgon2PHC(hashed)
 	if err != nil {
 		return parsed, nil, NewSyntaxError(err.Error())
 	}
