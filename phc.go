@@ -722,21 +722,21 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 		return result, nil
 	}
 
-	hash := split[2]
-	if validateErr := PHCValidateHash(hash, info.MinHashLength, info.MaxHashLength); validateErr != nil {
+	salt := split[2]
+	if validateErr := PHCValidateSalt(salt, info.MinSaltLength, info.MaxSaltLength); validateErr != nil {
 		return nil, validateErr
 	}
-	result.Hash = hash
+	result.Salt = salt
 
 	if len(split) < 4 {
 		return result, nil
 	}
 
-	salt := split[3]
-	if validateErr := PHCValidateSalt(salt, info.MinSaltLength, info.MaxSaltLength); validateErr != nil {
+	hash := split[3]
+	if validateErr := PHCValidateHash(hash, info.MinHashLength, info.MaxHashLength); validateErr != nil {
 		return nil, validateErr
 	}
-	result.Salt = salt
+	result.Hash = hash
 
 	return result, nil
 }

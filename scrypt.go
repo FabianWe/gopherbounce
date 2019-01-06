@@ -50,7 +50,7 @@ func (conf *ScryptConf) Copy() *ScryptConf {
 
 // String returns a human-readable string reprensetation.
 func (conf *ScryptConf) String() string {
-	return fmt.Sprintf("&rounds: %d, R: %d, P: %d, KeyLen: %d}", conf.rounds, conf.R, conf.P, conf.KeyLen)
+	return fmt.Sprintf("&{rounds: %d, R: %d, P: %d, KeyLen: %d}", conf.rounds, conf.R, conf.P, conf.KeyLen)
 }
 
 func (conf *ScryptConf) GetN() int {
