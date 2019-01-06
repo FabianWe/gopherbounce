@@ -47,7 +47,11 @@ type PHC struct {
 // It returns the number of bytes written.
 func EncodePHCID(w io.Writer, id string) (int, error) {
 	if len(id) >= 32 {
-		return 0, errors.New("Algorithm identifier is too long")
+		return 0, errors.New("gopherbounce/phc: Algorithm identifier is too long")
+	}
+	// check if identifier is valid
+	if !phcAllValid(isValidPHCIdentifier, id) {
+		return 0, fmt.Errorf("gopherbounce/phc: Invalid character in phc identifier \"%s\"", id)
 	}
 	return fmt.Fprint(w, "$", id)
 }
@@ -80,9 +84,14 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 		return result, nil
 	}
 	// boundary checking
+
+	// a bit of code duplication here, but not too much :)
 	maxLength := infos[nonEmpty].MaxLength
 	if maxLength >= 0 && len(values[nonEmpty]) > maxLength {
 		return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", infos[nonEmpty].Name, maxLength)
+	}
+	if !phcAllValid(isValidPHCParam, infos[nonEmpty].Name) || !phcAllValid(isValidPHCVal, values[nonEmpty]) {
+		return result, fmt.Errorf("gopherbounce/phc: Invalid param / value: \"%s = %s\"", infos[nonEmpty].Name, values[nonEmpty])
 	}
 	// print first
 	firstN, firstErr := fmt.Fprint(w, "$", infos[nonEmpty].Name, "=", values[nonEmpty])
@@ -101,6 +110,9 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 			maxLength = nextInfo.MaxLength
 			if maxLength >= 0 && len(nextParam) > maxLength {
 				return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", nextInfo.Name, maxLength)
+			}
+			if !phcAllValid(isValidPHCParam, nextInfo.Name) || !phcAllValid(isValidPHCVal, nextParam) {
+				return result, fmt.Errorf("gopherbounce/phc: Invalid param / value: \"%s = %s\"", nextInfo.Name, nextParam)
 			}
 			n, err := fmt.Fprint(w, ",", nextInfo.Name, "=", nextParam)
 			result += n
@@ -125,6 +137,9 @@ func EncodePHCSalt(w io.Writer, salt string, minLength, maxLength int) (int, err
 	if saltLen == 0 {
 		return 0, nil
 	}
+	if !phcAllValid(isValidPHCSalt, salt) {
+		return 0, errors.New("gopherbounce/phc: Invalid character in salt")
+	}
 	return fmt.Fprint(w, "$", salt)
 }
 
@@ -140,6 +155,9 @@ func EncodePHCHash(w io.Writer, hash string, minLength, maxLength int) (int, err
 	}
 	if hashLen == 0 {
 		return 0, nil
+	}
+	if !phcAllValid(isValidPHCB64, hash) {
+		return 0, errors.New("gopherbounce/phc: Invalid character in hash")
 	}
 	return fmt.Fprint(w, "$", hash)
 }
@@ -228,6 +246,15 @@ func (err PHCError) Error() string {
 }
 
 // the following functions implement char classes as defined for phc.
+
+func phcAllValid(f func(r rune) bool, s string) bool {
+	for _, r := range s {
+		if !f(r) {
+			return false
+		}
+	}
+	return true
+}
 
 func isValidPHCIdentifier(r rune) bool {
 	return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r == '-'
