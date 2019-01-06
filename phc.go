@@ -19,6 +19,21 @@ import (
 	"strings"
 )
 
+// PHC is a format for hash encodings, see
+// https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md
+// scrypt and argon2 use this encoding, though not everything is supported
+// at the moment.
+//
+// A PHC value is used to describe the parsed data. The ID is the algorithm id,
+// for example "scrypt". Salt and Hash are the salt and hash strings, usually
+// that is the base64 encoding of a binary salt/hash and must be decoded first.
+//
+// Params are the value of the phc parameters. The names of these parameters
+// are given by the algorithm specification, that is before parsing.
+// See PHCInfo type for more information. For optional parameters that are not
+// present in the phc string the parameter value is set to the empty string "".
+// This should be fine since each other valid value should have at least
+// length one.
 type PHC struct {
 	ID         string
 	Params     []string
@@ -27,6 +42,9 @@ type PHC struct {
 
 // I think a pool might be good here, but should be fine...
 
+// Encode encodes the pch object to a string. The info contains the
+// specification used for the encoding. Optional parameters (set to the empty
+// string in phc.Params) are not contained in the result.
 func (phc *PHC) Encode(info *PHCInfo) (string, error) {
 	// TODO add error handling: only option parameters empty & length checking
 	if len(phc.Params) != len(info.ParamInfos) {
@@ -36,18 +54,47 @@ func (phc *PHC) Encode(info *PHCInfo) (string, error) {
 	fmt.Fprint(&result, "$", phc.ID)
 	nonEmpty := -1
 	for i, p := range phc.Params {
-		if p != "" {
+		if p == "" {
+			if !info.ParamInfos[i].Optional {
+				return "", fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", info.ParamInfos[i].Name)
+			}
+		} else {
 			nonEmpty = i
+			break
 		}
-		break
 	}
 	if nonEmpty >= 0 {
+		// boundary checking
+		maxLength := info.ParamInfos[nonEmpty].MaxLength
+		if maxLength >= 0 && len(phc.Params[nonEmpty]) > maxLength {
+			return "", fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", info.ParamInfos[nonEmpty].Name, maxLength)
+		}
 		fmt.Fprintf(&result, "$%s=%s", info.ParamInfos[nonEmpty].Name, phc.Params[nonEmpty])
 		for i := nonEmpty + 1; i < len(info.ParamInfos); i++ {
-			if phc.Params[i] != "" {
-				fmt.Fprintf(&result, ",%s=%s", info.ParamInfos[i].Name, phc.Params[i])
+			nextParam := phc.Params[i]
+			nextInfo := info.ParamInfos[i]
+			if nextParam == "" {
+				if !nextInfo.Optional {
+					return "", fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", nextInfo.Name)
+				}
+			} else {
+				maxLength = nextInfo.MaxLength
+				if maxLength >= 0 && len(nextParam) > maxLength {
+					return "", fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", nextInfo.Name, maxLength)
+				}
+				fmt.Fprintf(&result, ",%s=%s", nextInfo.Name, nextParam)
 			}
 		}
+	}
+	saltLen := len(phc.Salt)
+	minSalt, maxSalt := info.MinSaltLength, info.MaxSaltLength
+	if (minSalt > 0 && saltLen < minSalt) || (maxSalt >= 0 && saltLen > maxSalt) {
+		return "", fmt.Errorf("gopherbounce/phc: Salt lengt not in the required range, length must be in [%d, %d]", minSalt, maxSalt)
+	}
+	hashLen := len(phc.Hash)
+	minHash, maxHash := info.MinHashLength, info.MaxHashLength
+	if (minHash > 0 && hashLen < minHash) || (maxHash >= 0 && hashLen > maxHash) {
+		return "", fmt.Errorf("gopherbounce/phc: Hash lengt not in the required range, length must be in [%d, %d]", minHash, maxHash)
 	}
 	if phc.Salt != "" {
 		fmt.Fprint(&result, "$", phc.Salt)
