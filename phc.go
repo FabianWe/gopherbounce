@@ -396,6 +396,10 @@ func NewPHCParamInfo(name string) *PHCParamInfo {
 }
 
 func parsePHCParValuePair(s string, info *PHCParamInfo) (string, string, error) {
+	// just to be sure: check parameter name
+	if validateErr := PHCValidateParamName(info.Name); validateErr != nil {
+		return "", "", NewPHCError(validateErr.Error())
+	}
 	if strings.HasPrefix(s, info.Name) {
 		// parse value
 		s = s[len(info.Name):]
