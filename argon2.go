@@ -170,25 +170,6 @@ func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 	// encode salt and key
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
 
-	// pch
-	// phc := &PHC{
-	// 	ID:   "argon2i",
-	// 	Salt: string(saltEnc),
-	// 	Hash: string(keyEnc),
-	// 	Params: []string{
-	// 		fmt.Sprintf("%d", h.Memory),
-	// 		fmt.Sprintf("%d", h.Time),
-	// 		fmt.Sprintf("%d", h.Threads),
-	// 		fmt.Sprintf("%d", argon2.Version),
-	// 	},
-	// }
-	//
-	// res, err := phc.EncodeString(PHCArgon2Config)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return []byte(res), nil
-
 	// new version, python format
 	res, err := h.Argon2Conf.encodeHashToString("argon2i", string(saltEnc), string(keyEnc))
 	if err != nil {
@@ -261,27 +242,6 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 		return nil, keyErr
 	}
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
-	// result := fmt.Sprintf("$argon2id$%d$%d$%d$%d$%s$%s", argon2.Version, h.Memory, h.Time, h.Threads, saltEnc, keyEnc)
-	// return []byte(result), nil
-
-	// pch
-	// phc := &PHC{
-	// 	ID:   "argon2id",
-	// 	Salt: string(saltEnc),
-	// 	Hash: string(keyEnc),
-	// 	Params: []string{
-	// 		fmt.Sprintf("%d", h.Memory),
-	// 		fmt.Sprintf("%d", h.Time),
-	// 		fmt.Sprintf("%d", h.Threads),
-	// 		fmt.Sprintf("%d", argon2.Version),
-	// 	},
-	// }
-	//
-	// res, err := phc.EncodeString(PHCArgon2Config)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return []byte(res), nil
 
 	res, err := h.Argon2Conf.encodeHashToString("argon2id", string(saltEnc), string(keyEnc))
 	if err != nil {
