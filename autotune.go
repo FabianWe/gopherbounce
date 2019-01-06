@@ -95,9 +95,9 @@ func TuneScrypt(base *ScryptConf, duration time.Duration) (*ScryptConf, time.Dur
 		base = base.Copy()
 	}
 	hasher := NewScryptHasher(base)
-	n := 32768
-	for n > 0 {
-		hasher.N = n
+	rounds := 15
+	for Pow(2, int64(rounds)) > 0 {
+		hasher.SetRounds(rounds)
 		f := func() error {
 			_, err := hasher.Generate(dummyPassword)
 			return err
@@ -109,10 +109,10 @@ func TuneScrypt(base *ScryptConf, duration time.Duration) (*ScryptConf, time.Dur
 		if avg >= duration {
 			conf := hasher.ScryptConf.Copy()
 			// no need to do that but that's more clear
-			conf.N = n
+			conf.SetRounds(rounds)
 			return conf, avg, nil
 		}
-		n *= 2
+		rounds++
 	}
 	return nil, 0, fmt.Errorf("Can't reach duration %v", duration)
 }

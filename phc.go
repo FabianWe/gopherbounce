@@ -28,6 +28,7 @@ type PHC struct {
 // I think a pool might be good here, but should be fine...
 
 func (phc *PHC) Encode(info *PHCInfo) (string, error) {
+	// TODO add error handling: only option parameters empty & length checking
 	if len(phc.Params) != len(info.ParamInfos) {
 		return "", fmt.Errorf("gopherbounce/phc: Parameter values and number of parameter description doesn't match")
 	}
@@ -177,6 +178,8 @@ func parsePHCParams(s string, infos []*PHCParamInfo) ([]string, bool, string, er
 			if strings.HasPrefix(s, ",") {
 				s = s[len(","):]
 			}
+			// TODO should we check for errors here?
+			// I mean what happens if there is no comma?
 		}
 		val, rest, err := parsePHCParValuePair(s, info)
 		if err != nil {
@@ -316,6 +319,19 @@ var (
 			&PHCParamInfo{"ln", 2, false},
 			&PHCParamInfo{"r", -1, false},
 			&PHCParamInfo{"p", -1, false},
+		},
+	}
+
+	PHCArgon2Config = &PHCInfo{
+		MinSaltLength: -1,
+		MaxSaltLength: -1,
+		MinHashLength: -1,
+		MaxHashLength: -1,
+		ParamInfos: []*PHCParamInfo{
+			&PHCParamInfo{"m", 10, false},
+			&PHCParamInfo{"t", 10, false},
+			&PHCParamInfo{"p", 3, false},
+			&PHCParamInfo{"v", -1, true},
 		},
 	}
 )

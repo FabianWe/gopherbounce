@@ -255,7 +255,9 @@ type AbstractScryptConstraint interface {
 // It imposes the restriction [VarName] [Rel] [Bound]. For example
 // n < 32768.
 //
-// VarName must be either n, r, p or KeyLen.
+// Note that n = 2^(rounds).
+//
+// VarName must be either n, rounds, r, p or KeyLen.
 type ScryptConstraint struct {
 	Bound   int64
 	VarName string
@@ -278,7 +280,9 @@ func (c ScryptConstraint) CheckScrypt(data *ScryptData) bool {
 	var lhs int
 	switch c.VarName {
 	case "n":
-		lhs = data.N
+		lhs = data.GetN()
+	case "rounds":
+		lhs = data.GetRounds()
 	case "r":
 		lhs = data.R
 	case "p":
@@ -372,7 +376,7 @@ func NewArgon2Constraint(bound uint64, varName string, rel BinRelation) Argon2Co
 
 func (c Argon2Constraint) checkConf(data *Argon2Conf) bool {
 	var lhs uint64
-	switch strings.ToLower(c.VarName) {
+	switch c.VarName {
 	case "time":
 		lhs = uint64(data.Time)
 	case "memory":

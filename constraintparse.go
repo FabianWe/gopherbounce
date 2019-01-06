@@ -160,6 +160,8 @@ func ParseScryptCons(line string) (ScryptConstraint, error) {
 	switch strings.ToLower(lhs) {
 	case "n":
 		return NewScryptConstraint(bound64, "n", rel), nil
+	case "rounds":
+		return NewScryptConstraint(bound64, "rounds", rel), nil
 	case "r":
 		return NewScryptConstraint(bound64, "r", rel), nil
 	case "p":
