@@ -133,7 +133,7 @@ The computed hashes contain the parameters as well as the key (encoded base64) a
 | argon2id  | 64         | 265                 |
 
 ## Hash formats
-The library uses a [phc](https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md)-like format wherever possible. I've tried to be compatible with python hashing libraries though (and I think by this many of its C base libraries). Not all hashes do that though: bcrypt uses the encoding of the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) package, argon2 hashes contain the version in its own section like in [python passlib](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.argon2.html).
+The library uses a [phc](https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md)-like format wherever possible. I've tried to be compatible with python hashing libraries though (and I think by this many of its C base libraries). This means not all hashes are pure phc: bcrypt uses the encoding of the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) package, argon2 hashes contain the version in its own section like in [python passlib](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.argon2.html).
 
 Examples of hashes:
 
