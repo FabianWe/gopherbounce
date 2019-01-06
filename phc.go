@@ -42,18 +42,47 @@ type PHC struct {
 	Salt, Hash string
 }
 
+func PHCValidateID(id string) error {
+	// check if identifier is valid
+	if !phcAllValid(isValidPHCIdentifier, id) {
+		return fmt.Errorf("gopherbounce/phc: Invalid character in phc identifier \"%s\"", id)
+	}
+	if len(id) > 32 {
+		return errors.New("gopherbounce/phc: Algorithm identifier is too long")
+	}
+	return nil
+}
+
 // EncodePHCID writes the algorithm id in the phc format to the writer.
 // The string written is simply "$ID".
 // It returns the number of bytes written.
 func EncodePHCID(w io.Writer, id string) (int, error) {
-	if len(id) >= 32 {
-		return 0, errors.New("gopherbounce/phc: Algorithm identifier is too long")
-	}
-	// check if identifier is valid
-	if !phcAllValid(isValidPHCIdentifier, id) {
-		return 0, fmt.Errorf("gopherbounce/phc: Invalid character in phc identifier \"%s\"", id)
+	// validate id
+	err := PHCValidateID(id)
+	if err != nil {
+		return 0, err
 	}
 	return fmt.Fprint(w, "$", id)
+}
+
+func PHCValidateParamName(param string) error {
+	if !phcAllValid(isValidPHCParam, param) {
+		return fmt.Errorf("gopherbounce/phc: Invalid parameter name: \"%s\"", param)
+	}
+	if len(param) > 32 {
+		return fmt.Errorf("gopherbounce/phc: Parameter name \"%s\" is too long", param)
+	}
+	return nil
+}
+
+func PHCValidateValue(value string, maxLength int) error {
+	if !phcAllValid(isValidPHCVal, value) {
+		return fmt.Errorf("gopherbounce/phc: Invalid parameter value: \"%s\"", value)
+	}
+	if maxLength >= 0 && len(value) > maxLength {
+		return fmt.Errorf("gopherbounce/phc: Parameter value \"%s\" exceeds max length of %d", value, maxLength)
+	}
+	return nil
 }
 
 // EncodePHCParams writes the pch parameters to the writer.
@@ -87,11 +116,11 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 
 	// a bit of code duplication here, but not too much :)
 	maxLength := infos[nonEmpty].MaxLength
-	if maxLength >= 0 && len(values[nonEmpty]) > maxLength {
-		return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", infos[nonEmpty].Name, maxLength)
+	if validateErr := PHCValidateParamName(infos[nonEmpty].Name); validateErr != nil {
+		return result, validateErr
 	}
-	if !phcAllValid(isValidPHCParam, infos[nonEmpty].Name) || !phcAllValid(isValidPHCVal, values[nonEmpty]) {
-		return result, fmt.Errorf("gopherbounce/phc: Invalid param / value: \"%s = %s\"", infos[nonEmpty].Name, values[nonEmpty])
+	if validateErr := PHCValidateValue(values[nonEmpty], maxLength); validateErr != nil {
+		return result, validateErr
 	}
 	// print first
 	firstN, firstErr := fmt.Fprint(w, "$", infos[nonEmpty].Name, "=", values[nonEmpty])
@@ -100,21 +129,21 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 		return result, firstErr
 	}
 	for i := nonEmpty + 1; i < len(infos); i++ {
-		nextParam := values[i]
+		nextValue := values[i]
 		nextInfo := infos[i]
-		if nextParam == "" {
+		if nextValue == "" {
 			if !nextInfo.Optional {
 				return result, fmt.Errorf("gopherbounce/phc: No value for non-optional parameter %s", nextInfo.Name)
 			}
 		} else {
 			maxLength = nextInfo.MaxLength
-			if maxLength >= 0 && len(nextParam) > maxLength {
-				return result, fmt.Errorf("gopherbounce/phc: Value for parameter %s exceeds max length of %d", nextInfo.Name, maxLength)
+			if validateErr := PHCValidateParamName(nextInfo.Name); validateErr != nil {
+				return result, validateErr
 			}
-			if !phcAllValid(isValidPHCParam, nextInfo.Name) || !phcAllValid(isValidPHCVal, nextParam) {
-				return result, fmt.Errorf("gopherbounce/phc: Invalid param / value: \"%s = %s\"", nextInfo.Name, nextParam)
+			if validateErr := PHCValidateValue(nextValue, maxLength); validateErr != nil {
+				return result, validateErr
 			}
-			n, err := fmt.Fprint(w, ",", nextInfo.Name, "=", nextParam)
+			n, err := fmt.Fprint(w, ",", nextInfo.Name, "=", nextValue)
 			result += n
 			if err != nil {
 				return result, err
@@ -124,23 +153,41 @@ func EncodePHCParams(w io.Writer, values []string, infos []*PHCParamInfo) (int, 
 	return result, nil
 }
 
+func PHCValidateSalt(salt string, minLength, maxLength int) error {
+	saltLen := len(salt)
+	if (minLength > 0 && saltLen < minLength) || (maxLength >= 0 && saltLen > maxLength) {
+		return fmt.Errorf("gopherbounce/phc: Salt length not in the required range, length must be in [%d, %d]", minLength, maxLength)
+	}
+	if !phcAllValid(isValidPHCSalt, salt) {
+		return errors.New("gopherbounce/phc: Invalid character in salt")
+	}
+	return nil
+}
+
 // EncodePHCSalt writes the salt to the writer.
 // If the salt is empty nothing is written.
 // It returns the number of bytes written. An error might occur if the salt
 // is invalid (according to min/max length) or if writing to w fails.
 // The length can be < 0 in which case they're ignored.
 func EncodePHCSalt(w io.Writer, salt string, minLength, maxLength int) (int, error) {
-	saltLen := len(salt)
-	if (minLength > 0 && saltLen < minLength) || (maxLength >= 0 && saltLen > maxLength) {
-		return 0, fmt.Errorf("gopherbounce/phc: Salt length not in the required range, length must be in [%d, %d]", minLength, maxLength)
+	if validateErr := PHCValidateSalt(salt, minLength, maxLength); validateErr != nil {
+		return 0, validateErr
 	}
-	if saltLen == 0 {
+	if salt == "" {
 		return 0, nil
 	}
-	if !phcAllValid(isValidPHCSalt, salt) {
-		return 0, errors.New("gopherbounce/phc: Invalid character in salt")
-	}
 	return fmt.Fprint(w, "$", salt)
+}
+
+func PHCValidateHash(hash string, minLength, maxLength int) error {
+	hashLen := len(hash)
+	if (minLength > 0 && hashLen < minLength) || (maxLength >= 0 && hashLen > maxLength) {
+		return fmt.Errorf("gopherbounce/phc: Hash length not in the required range, length must be in [%d, %d]", minLength, maxLength)
+	}
+	if !phcAllValid(isValidPHCB64, hash) {
+		return errors.New("gopherbounce/phc: Invalid character in hash")
+	}
+	return nil
 }
 
 // EncodePHCHash writes the hash to the writer.
@@ -149,15 +196,12 @@ func EncodePHCSalt(w io.Writer, salt string, minLength, maxLength int) (int, err
 // is invalid (according to min/max length) or if writing to w fails.
 // The length can be < 0 in which case they're ignored.
 func EncodePHCHash(w io.Writer, hash string, minLength, maxLength int) (int, error) {
-	hashLen := len(hash)
-	if (minLength > 0 && hashLen < minLength) || (maxLength >= 0 && hashLen > maxLength) {
-		return 0, fmt.Errorf("gopherbounce/phc: Hash length not in the required range, length must be in [%d, %d]", minLength, maxLength)
+	if validateErr := PHCValidateHash(hash, minLength, maxLength); validateErr != nil {
+		return 0, validateErr
 	}
-	if hashLen == 0 {
+
+	if hash == "" {
 		return 0, nil
-	}
-	if !phcAllValid(isValidPHCB64, hash) {
-		return 0, errors.New("gopherbounce/phc: Invalid character in hash")
 	}
 	return fmt.Fprint(w, "$", hash)
 }
