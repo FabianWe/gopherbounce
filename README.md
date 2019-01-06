@@ -27,24 +27,23 @@ if okay == nil {
 A more elaborate example exists in [play.go](https://github.com/FabianWe/gopherbounce/blob/master/cmd/play/play.go)
 
 ## Using different hash / key functions
-There are three algorithms implemented. Each algorithm implements the [Hasher](https://godoc.org/github.com/FabianWe/gopherbounce#Hasher) interface. Implemented algorithms currently include [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id). Each of them has an implementation wrapping it, for example [ScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptHasher).  These hashers can be created with an algorithm specific config ([NewScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#NewScryptHasher) with a [ScryptConf](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptConf)). The New functions usually accept `nil` and create some sane defaults. Change those values only if you know what you're doing! For example: `ScryptHasher` by default creates keys and salts of length 32. If you want a length of 64 you can do:
+There are three algorithms implemented. Each algorithm implements the [Hasher](https://godoc.org/github.com/FabianWe/gopherbounce#Hasher) interface. Implemented algorithms currently include [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id). Each of them has an implementation wrapping it, for example [ScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptHasher).  These hashers can be created with an algorithm specific config ([NewScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#NewScryptHasher) with a [ScryptConf](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptConf)). The New functions usually accept `nil` and create some sane defaults. Change those values only if you know what you're doing! For example: `ScryptHasher` by default creates keys and salts of length 64. If you want a length of 32 you can do:
 ```go
 hasher := gopherbounce.NewScryptHasher(nil)
-hasher.KeyLen = 64
+hasher.KeyLen = 32
 ```
 For all parameters check the code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce). A list of default parameters can be found below.
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
 
 ## Which hash function should I use?
 bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id is the default in this package though, I like how argon2id scales even for further hardware improvements.
-So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely. scrypt should be fine as well, argon2i should not be
-used, in constrast to argon2id.
+So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely. scrypt should be fine as well, argon2i should not be used, in constrast to argon2id. argon2id has the big advantage that it scales nicely (with both time and memory).
 
 ## Validating hashes
 The easiest way to validate hashes is to use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator). They both accept the hashed version of a password and return either a function that can compare passwords with the hashed entry or a [Validator](https://godoc.org/github.com/FabianWe/gopherbounce#Validator) object. See the documentation for more details.
 
 ## Parsing hashes
-The password hashes are encoded in a single string and there are functions to parse these hash strings. For example scrypt may produce the following string: `$4s$5t6drCj5zyGIx8cbf24Bhssg/deIPoIilCIhDVFe.oG=$32768$8$1$dNu7EQwUib2o0spmvj0gHb5o1DKA.lbWk03QqtA2GQC=`. This contains all parameters as well as the key and salt (encoded with base64). This string can be parsed with [ParseScryptData](https://godoc.org/github.com/FabianWe/gopherbounce#ParseScryptData). Similar functions exist for other hashers as well. This is exactly what is done by the Validator implementations by the way.
+The password hashes are encoded in a single string and there are functions to parse these hash strings. For example scrypt may produce the following string: ` $scrypt$ln=17,r=8,p=1$iDXJYV9jfWJVxmT7WxJvQ36G+gstxkYaapud/VfyZNs$Fknczp5AEqM6AwehE6D6VtV2lk/6gUNHM311ICEMkrE`. This contains all parameters as well as the key and salt (encoded with base64). This string can be parsed with [ParseScryptData](https://godoc.org/github.com/FabianWe/gopherbounce#ParseScryptData). Similar functions exist for other hashers as well. This is exactly what is done by the Validator implementations by the way.
 
 ## How to embed into an application
 There are some basic rules on how to store user passwords. I'm not a security expert, that should be said for the whole library! I did my best to make everything secure, but that's not a promise! So here's a short recap on how to deal with passwords:
@@ -74,22 +73,24 @@ Read the details in the [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) d
 
 | Parameter | Default        | Note                        |
 |-----------|----------------|-----------------------------|
-| N         | 131072 (= 2¹⁷) | CPU / memory cost parameter |
+| N         | 65536  (= 2¹⁶) | CPU / memory cost parameter |
 | R         | 8              | r * p < 2³⁰                 |
 | P         | 1              | r * p < 2³⁰                 |
-| KeyLen    | 32             |                             |
+| KeyLen    | 64             |                             |
 
-N is the main CPU / memory cost parameter. The scrypt package documentation recommends N = 32768 (2¹⁵). However I've found that to small due to improved hardware, thus the default is 131072 (2¹⁷).
+N is the main CPU / memory cost parameter. The scrypt package documentation recommends N = 32768 (2¹⁵). However I've found that to small due to improved hardware, thus the default is 65536 (2¹⁶). However note that N scales both CPU and memory, on systems with restricted memory (maybe even some servers with lots of hash computations) 2¹⁶ can be too much. I really prefer argon2.
+
+Note that N is the cost parameter (as can be found in the documentation). N must be a power of two. You can't set n directly, instead you can set the number of rounds with N = 2^(rounds). So for a value of N = 65536 do `SetRounds(16)`. For invalid rounds (2^(rounds) overflows int) rounds = 16 will be printed and a warning gets logged. Just use rounds s.t. 2^rounds fits in an integer.
 
 ## Argon2i
 Read the details in the [argon2](https://godoc.org/golang.org/x/crypto/argon2) documentation.
 
 | Parameter | Default        | Note                  |
 |-----------|----------------|-----------------------|
-| Time      | 10             | CPU cost parameter    |
+| Time      | 5              | CPU cost parameter    |
 | Memory    | 64*1024 ~64 MB | Memory in KiB         |
 | Threads   | Number of CPUs | Concurrency parameter |
-| KeyLen    | 32             |                       |
+| KeyLen    | 64             |                       |
 
 The documentation suggests Time (t) = 3 and Memory (m) = 32 * 1024 ~32 MB, this is not enough in my opinion so both have been increased.
 
@@ -98,10 +99,10 @@ Read the details in the [argon2](https://godoc.org/golang.org/x/crypto/argon2) d
 
 | Parameter | Default        | Note                  |
 |-----------|----------------|-----------------------|
-| Time      | 10             | CPU cost parameter    |
+| Time      | 5              | CPU cost parameter    |
 | Memory    | 64*1024 ~64 MB | Memory in KiB         |
 | Threads   | Number of CPUs | Concurrency parameter |
-| KeyLen    | 32             |                       |
+| KeyLen    | 64             |                       |
 
 The documentation suggests Time (t) = 1. Again this parameter has been increased.
 
@@ -124,12 +125,12 @@ The computed hashes contain the parameters as well as the key (encoded base64) a
 | Algorithm | KeyLen     | Max Encoding length |
 |-----------|------------|---------------------|
 | bcrypt    | 32 (fixed) | 60                  |
-| scrypt    | 32         | 156                 |
-| scrypt    | 64         | 244                 |
-| argon2i   | 32         | 182                 |
-| argon2i   | 64         | 270                 |
-| argon2id  | 32         | 183                 |
-| argon2id  | 64         | 271                 |
+| scrypt    | 32         | 149                 |
+| scrypt    | 64         | 237                 |
+| argon2i   | 32         | 153                 |
+| argon2i   | 64         | 241                 |
+| argon2id  | 32         | 154                 |
+| argon2id  | 64         | 242                 |
 
 ## Constraints
 Constraints impose restrictions on the arguments of hashers. That is if a password hash was created with values that now became insecure (better hardware or whatever) or with a hashing algorithm that proved to be insecure these password hashes should be replaced. gopherbounce has a [Constraint](https://godoc.org/github.com/FabianWe/gopherbounce#Constraint) interface for this purpose.

@@ -66,15 +66,15 @@ func (conf *ScryptConf) SetRounds(rounds int) {
 	asInt := int(pow)
 	if asInt <= 0 {
 		log.Printf("Invalid rounds parameter for scrypt: %d. Using default (17)\n", rounds)
-		asInt = 131072
-		rounds = 17
+		asInt = 65536
+		rounds = 16
 	}
 	conf.rounds = rounds
 	conf.n = asInt
 }
 
 // DefaultScryptConf is the default configuration for scrypt.
-var DefaultScryptConf = NewScryptConf(17, 8, 1, 32)
+var DefaultScryptConf = NewScryptConf(16, 8, 1, 64)
 
 // ScryptData stores in addition to a config also the salt and key, both
 // base64 encoded (Salt and Key) as well as the raw version (decoded from
