@@ -691,10 +691,7 @@ func PHCParseParams(s string, infos []*PHCParamInfo) ([]string, error) {
 	return result, nil
 }
 
-// ParsePHC parses a phc string and returns the result as a PHC object.
-// The info is used to check the format against the input string.
-func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
-	split := PHCSplitString(s)
+func ParsePHCFromParts(split []string, info *PHCInfo) (*PHC, error) {
 	if len(split) == 0 {
 		return nil, NewPHCError("gopherbounce/phc: No algorithm id given")
 	}
@@ -739,4 +736,10 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 	result.Hash = hash
 
 	return result, nil
+}
+
+// ParsePHC parses a phc string and returns the result as a PHC object.
+// The info is used to check the format against the input string.
+func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
+	return ParsePHCFromParts(PHCSplitString(s), info)
 }
