@@ -105,8 +105,10 @@ func (phc *PHC) Encode(info *PHCInfo) (string, error) {
 	return result.String(), nil
 }
 
+// PHCError is returned by the pch parse function.
 type PHCError string
 
+// NewPHCError returns a new PHCError.
 func NewPHCError(s string) PHCError {
 	return PHCError(s)
 }
@@ -114,6 +116,8 @@ func NewPHCError(s string) PHCError {
 func (err PHCError) Error() string {
 	return string(err)
 }
+
+// the following functions implement char classes as defined for phc.
 
 func isValidPHCIdentifier(r rune) bool {
 	return ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r == '-'
@@ -137,6 +141,19 @@ func isValidPHCB64(r rune) bool {
 	return isValidPHCIdentifier(r) || r == '+' || r == '/'
 }
 
+// parsePHCIdentifier parses a part from the string s. It parses the following
+// part:
+// it finds the prefix of s in which all characters are in the character class
+// defined by the validate function. It stops on the first character for which
+// delim returns true or the end of the string.
+//
+// It validates the parsed prefix by checking it against minLength and
+// maxLength,bot of which can be < 0 in which case no boundary checking is done.
+//
+// It returns the prefix of s that was parsed and the rest of the string (what
+// can be parsed by other methods).
+//
+// Note that the prefix can be empty.
 func parsePHCIdentifier(s string, minLength, maxLength int,
 	validate func(rune) bool,
 	delim func(rune) bool) (string, string, error) {
@@ -176,12 +193,19 @@ func parsePHCValue(s string, maxLength int) (string, string, error) {
 	return parsePHCIdentifier(s, 1, maxLength, isValidPHCVal, delim)
 }
 
+// PHCParamInfo describes information about a parameter in pch.
+// A parameter has a name (like "r" in scrypt). MaxLength is the maximal length
+// the parameter is allowed to have. We allow -1 which means that there is no
+// boundary.
+// Optional should be set to true if the parameter is optional.
 type PHCParamInfo struct {
 	Name      string
 	MaxLength int
 	Optional  bool
 }
 
+// NewPHCParamInfo returns a new phc parameter without a max length and
+// optional set to false.
 func NewPHCParamInfo(name string) *PHCParamInfo {
 	return &PHCParamInfo{
 		Name:      name,
@@ -253,12 +277,19 @@ func parsePHCB64(s string, minLength, maxLength int) (string, string, error) {
 	return parsePHCIdentifier(s, minLength, maxLength, isValidPHCB64, delim)
 }
 
+// PHCInfo bundles information about a PHC hash string.
+// It describes information about the parameters (in the ParamInfos slice,
+// the order in the slice implies the order of the parameters) as well
+// as minimum and maximum lengths for both the salt and the hash.
+// All boundaries can be set to -1, meaning that no min/max value is set.
 type PHCInfo struct {
 	ParamInfos                   []*PHCParamInfo
 	MinSaltLength, MaxSaltLength int
 	MinHashLength, MaxHashLength int
 }
 
+// NewPHCInfo returns a new PHCInfo with empty parameters and no restrictions
+// on the salt / hash length.
 func NewPHCInfo() *PHCInfo {
 	return &PHCInfo{
 		ParamInfos:    nil,
@@ -269,6 +300,8 @@ func NewPHCInfo() *PHCInfo {
 	}
 }
 
+// ParsePHC parses a phc string and returns the result as a PHC object.
+// The info is used to check the format against the input string.
 func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 	if !strings.HasPrefix(s, "$") {
 		return nil, NewPHCError("gopherbounce.PHCParse: Empty hash string")
@@ -357,6 +390,7 @@ func ParsePHC(s string, info *PHCInfo) (*PHC, error) {
 }
 
 var (
+	// PHCScryptConfig is the phc description of scrypt hashes.
 	PHCScryptConfig = &PHCInfo{
 		MinSaltLength: -1,
 		MaxSaltLength: -1,
@@ -369,6 +403,7 @@ var (
 		},
 	}
 
+	// PHCArgon2Config is the phc description of argon2 hashes.
 	PHCArgon2Config = &PHCInfo{
 		MinSaltLength: -1,
 		MaxSaltLength: -1,
