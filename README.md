@@ -127,10 +127,19 @@ The computed hashes contain the parameters as well as the key (encoded base64) a
 | bcrypt    | 32 (fixed) | 60                  |
 | scrypt    | 32         | 149                 |
 | scrypt    | 64         | 237                 |
-| argon2i   | 32         | 153                 |
-| argon2i   | 64         | 241                 |
-| argon2id  | 32         | 154                 |
-| argon2id  | 64         | 242                 |
+| argon2i   | 32         | 176                 |
+| argon2i   | 64         | 264                 |
+| argon2id  | 32         | 177                 |
+| argon2id  | 64         | 265                 |
+
+## Hash formats
+The library uses a [phc](https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md)-like format wherever possible. I've tried to be compatible with python hashing libraries though (and I think by this many of its C base libraries). Not all hashes do that though: bcrypt uses the encoding of the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) package, argon2 hashes contain the version in its own section like in [python passlib](https://passlib.readthedocs.io/en/stable/lib/passlib.hash.argon2.html).
+
+Examples of hashes:
+
+ - **bcrypt:** `$2a$12$EQvhgTqh1YSzPaI215iX1.oDMckmbm29DCvVvmQvYx.8RlwIbEXpC`
+ - **scrypt:** `$scrypt$ln=16,r=8,p=1$T3atTORf3LoPvGc1ocgyghoONHQnSobSpBAZ7w9jeIBK3Q4K0oeqRuQ6a67/dJLXOT8PrGxoHiyKUC73pH5Mgg$Pq1+fp9EJ61FOUrb9FN7Mwyn6zg1mG524s6i7E1sO3IBl32eXpogQzCNQvA5BKAgpt54/fuzEHBmlSXheJgGIA`
+ - **argon2:** `$argon2id$v=19$m=65536,t=5,p=4$/grUZ55pLAb2wDCxuMAWTXbjsIqNHxuCEHGDv3hQI8PdB5swVXMKah9WHnW2A2B8eVLLondKnaU2NTuZIbpDUg$qNGIMqbNZAUIaO45T9qFkktssIHhkkHRwSpxEUBciCHsMjY2z61WYxT1zQOcvxtu+XUYlVe1oLiRDEpeGFr5mQ`
 
 ## Constraints
 Constraints impose restrictions on the arguments of hashers. That is if a password hash was created with values that now became insecure (better hardware or whatever) or with a hashing algorithm that proved to be insecure these password hashes should be replaced. gopherbounce has a [Constraint](https://godoc.org/github.com/FabianWe/gopherbounce#Constraint) interface for this purpose.

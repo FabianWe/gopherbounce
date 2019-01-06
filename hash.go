@@ -259,9 +259,10 @@ func SycryptHashSize(keyLen int) int {
 // and salt of with KeyLen bytes. The length is the maximal length, not the
 // actual length.
 func Argon2iHashSize(keyLen int) int {
-	// $argon2i$m=65536,t=10,p=4,v=19$4Sjyonv6rzM4CBmDrjlFjTQAg8QlyIVvISBZKDqBAw0$kuYYttT7QkfIN3nQDygAN2eRjikvGrONabwHBt+vDZ4
+	// $argon2i$v=19$m=65536,t=5,p=4$/grUZ55pLAb2wDCxuMAWTXbjsIqNHxuCEHGDv3hQI8PdB5swVXMKah9WHnW2A2B8eVLLondKnaU2NTuZIbpDUg$qNGIMqbNZAUIaO45T9qFkktssIHhkkHRwSpxEUBciCHsMjY2z61WYxT1zQOcvxtu+XUYlVe1oLiRDEpeGFr5mQ
 	maxEncLength := DefaultEncoding.Encoding.EncodedLen(keyLen)
 	// prefix ==> 9
+	// v=VERSION$ ==> 2 + MaxIntLength + 1
 	// uint32 has max length of 10
 	// m=VALUE ==> 2 + 10
 	// ,t=VALUE ==> 3 + 10
@@ -269,7 +270,7 @@ func Argon2iHashSize(keyLen int) int {
 	// ,v=VALUE ==> 3 + MaxIntLength
 	// $SALT ==> 1 + salt
 	// $HASH ==> 1 + hash
-	return 9 + 12 + 13 + 6 + 3 + MaxIntLength + 2 + 2*maxEncLength
+	return 9 + 2 + MaxIntLength + 1 + 12 + 13 + 6 + 3 + MaxIntLength + 2 + 2*maxEncLength
 }
 
 // Argon2idHashSize returns the maximal hash size of a argon2id hash with a key
