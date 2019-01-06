@@ -80,7 +80,7 @@ Read the details in the [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) d
 
 N is the main CPU / memory cost parameter. The scrypt package documentation recommends N = 32768 (2¹⁵). However I've found that to small due to improved hardware, thus the default is 65536 (2¹⁶). However note that N scales both CPU and memory, on systems with restricted memory (maybe even some servers with lots of hash computations) 2¹⁶ can be too much. I really prefer argon2.
 
-Note that N is the cost parameter (as can be found in the documentation). N must be a power of two. You can't set n directly, instead you can set the number of rounds with N = 2^(rounds). So for a value of N = 65536 do `SetRounds(16)`. For invalid rounds (2^(rounds) overflows int) rounds = 16 will be printed and a warning gets logged. Just use rounds s.t. 2^rounds fits in an integer.
+Note that N is the cost parameter (as can be found in the documentation). N must be a power of two. You can't set n directly, instead you can set the number of rounds with N = 2^(rounds). So for a value of N = 65536 do `SetRounds(16)`. For invalid rounds (2^(rounds) overflows int) rounds = 16 will used and a warning gets logged. Just use rounds s.t. 2^rounds fits in an integer.
 
 ## Argon2i
 Read the details in the [argon2](https://godoc.org/golang.org/x/crypto/argon2) documentation.
