@@ -605,7 +605,6 @@ var (
 			&PHCParamInfo{"m", 10, false},
 			&PHCParamInfo{"t", 10, false},
 			&PHCParamInfo{"p", 3, false},
-			&PHCParamInfo{"v", -1, true},
 		},
 	}
 )

@@ -15,7 +15,9 @@
 package gopherbounce
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"runtime"
 	"strconv"
@@ -31,6 +33,60 @@ type Argon2Conf struct {
 	Memory  uint32
 	Threads uint8
 	KeyLen  uint32
+}
+
+func (conf *Argon2Conf) encodeHash(w io.Writer, algID, salt, hash string) (int, error) {
+	res := 0
+
+	if salt == "" || hash == "" {
+		return res, errors.New("gopherbounce/argon2: salt or key empty while phc encoding")
+	}
+
+	n, err := EncodePHCID(w, algID)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprint(w, "$v=", strconv.Itoa(argon2.Version))
+	res += n
+	if err != nil {
+		return res, err
+	}
+	params := []string{
+		fmt.Sprintf("%d", conf.Memory),
+		fmt.Sprintf("%d", conf.Time),
+		fmt.Sprintf("%d", conf.Threads),
+	}
+	n, err = EncodePHCParams(w, params, PHCArgon2Config.ParamInfos)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = EncodePHCSalt(w, salt, -1, -1)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = EncodePHCHash(w, hash, -1, -1)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (conf *Argon2Conf) encodeHashToString(algID, salt, hash string) (string, error) {
+	var builder strings.Builder
+
+	_, err := conf.encodeHash(&builder, algID, salt, hash)
+	if err != nil {
+		return "", err
+	}
+	return builder.String(), nil
 }
 
 // Copy returns a copy of a config.
@@ -113,23 +169,28 @@ func (h *Argon2iHasher) Generate(password string) ([]byte, error) {
 	}
 	// encode salt and key
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
-	// result := fmt.Sprintf("$argon2i$%d$%d$%d$%d$%s$%s", argon2.Version, h.Memory, h.Time, h.Threads, saltEnc, keyEnc)
-	// return []byte(result), nil
 
 	// pch
-	phc := &PHC{
-		ID:   "argon2i",
-		Salt: string(saltEnc),
-		Hash: string(keyEnc),
-		Params: []string{
-			fmt.Sprintf("%d", h.Memory),
-			fmt.Sprintf("%d", h.Time),
-			fmt.Sprintf("%d", h.Threads),
-			fmt.Sprintf("%d", argon2.Version),
-		},
-	}
+	// phc := &PHC{
+	// 	ID:   "argon2i",
+	// 	Salt: string(saltEnc),
+	// 	Hash: string(keyEnc),
+	// 	Params: []string{
+	// 		fmt.Sprintf("%d", h.Memory),
+	// 		fmt.Sprintf("%d", h.Time),
+	// 		fmt.Sprintf("%d", h.Threads),
+	// 		fmt.Sprintf("%d", argon2.Version),
+	// 	},
+	// }
+	//
+	// res, err := phc.EncodeString(PHCArgon2Config)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return []byte(res), nil
 
-	res, err := phc.EncodeString(PHCArgon2Config)
+	// new version, python format
+	res, err := h.Argon2Conf.encodeHashToString("argon2i", string(saltEnc), string(keyEnc))
 	if err != nil {
 		return nil, err
 	}
@@ -204,39 +265,71 @@ func (h *Argon2idHasher) Generate(password string) ([]byte, error) {
 	// return []byte(result), nil
 
 	// pch
-	phc := &PHC{
-		ID:   "argon2id",
-		Salt: string(saltEnc),
-		Hash: string(keyEnc),
-		Params: []string{
-			fmt.Sprintf("%d", h.Memory),
-			fmt.Sprintf("%d", h.Time),
-			fmt.Sprintf("%d", h.Threads),
-			fmt.Sprintf("%d", argon2.Version),
-		},
-	}
+	// phc := &PHC{
+	// 	ID:   "argon2id",
+	// 	Salt: string(saltEnc),
+	// 	Hash: string(keyEnc),
+	// 	Params: []string{
+	// 		fmt.Sprintf("%d", h.Memory),
+	// 		fmt.Sprintf("%d", h.Time),
+	// 		fmt.Sprintf("%d", h.Threads),
+	// 		fmt.Sprintf("%d", argon2.Version),
+	// 	},
+	// }
+	//
+	// res, err := phc.EncodeString(PHCArgon2Config)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return []byte(res), nil
 
-	res, err := phc.EncodeString(PHCArgon2Config)
+	res, err := h.Argon2Conf.encodeHashToString("argon2id", string(saltEnc), string(keyEnc))
 	if err != nil {
 		return nil, err
 	}
 	return []byte(res), nil
 }
 
-func ParseArgon2Conf(hashed []byte) (*PHC, *Argon2Conf, error) {
+func ParseArgon2PHC(hashed []byte) (*PHC, error) {
 	s := string(hashed)
-	parsed, err := ParsePHC(s, PHCArgon2Config)
+	// we have to take care of the additional v=... field
+	// thus we first split the phc string, then take the version field out
+	// of it, compose the parts without the version field and use ParsePHCFromParts
+	split := PHCSplitString(s)
+	if len(split) != 6 {
+		return nil, NewPHCError("gopherbounce/argon2: Invalid argon2 hash")
+	}
+	versionString := split[2]
+	versionName, versionVal, versionErr := PHCSplitParam(versionString)
+	if versionErr != nil {
+		return nil, versionErr
+	}
+	if versionName != "v" {
+		return nil, NewPHCError("gopherbounce/argon2: argon2 version not specified in hash")
+	}
+	if validateErr := PHCValidateValue(versionVal, MaxIntLength); validateErr != nil {
+		return nil, validateErr
+	}
+	// remove version from split array
+	newSplit := make([]string, 5)
+	copy(newSplit, split[:2])
+	copy(newSplit[2:], split[3:])
+	return ParsePHCFromParts(newSplit, PHCArgon2Config)
+}
+
+func ParseArgon2Conf(hashed []byte) (*PHC, *Argon2Conf, error) {
+	parsed, err := ParseArgon2PHC(hashed)
 	if err != nil {
 		return parsed, nil, NewSyntaxError(err.Error())
 	}
 	if !strings.HasPrefix(parsed.ID, "argon2") {
 		return parsed, nil, NewSyntaxError(fmt.Sprintf("Invalid algorithm %s: Does not start with argon2", parsed.ID))
 	}
-	if len(parsed.Params) != 4 {
+	if len(parsed.Params) != 3 {
 		return parsed,
 			nil,
 			fmt.Errorf("gopherbounce/argon2: Internal error: phc parser for argon2 returned wrong number of parameters (got %d, expected %d)",
-				len(parsed.Params), 4)
+				len(parsed.Params), 3)
 	}
 	m64, err := strconv.ParseUint(parsed.Params[0], 10, 32)
 	if err != nil {
