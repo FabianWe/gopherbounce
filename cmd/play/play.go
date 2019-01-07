@@ -42,7 +42,7 @@ func main() {
 		fmt.Println("Hasher config:")
 		gopherbounce.WriteHasherConf(os.Stdout, hasher)
 		start := time.Now()
-		hash, err := hasher.Generate(password)
+		hash, err := gopherbounce.Generate(hasher, password)
 		execTime := time.Since(start)
 		if err != nil {
 			fmt.Println("There was an error:", err.Error())
@@ -63,7 +63,7 @@ func main() {
 		fmt.Println("Next validator is", reflect.TypeOf(validator))
 		hash := hashes[i]
 		start := time.Now()
-		compare := validator.Compare(hash, check)
+		compare := gopherbounce.Compare(validator, hash, check)
 		execTime := time.Since(start)
 		fmt.Println("Comparison took", execTime)
 		if compare == nil {

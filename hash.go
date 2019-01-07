@@ -17,8 +17,10 @@ package gopherbounce
 import (
 	"crypto/rand"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strings"
 )
 
@@ -219,12 +221,15 @@ type ValidatorFunc func(password string) error
 // guessed from the hashed version.
 func GuessValidatorFunc(hashed []byte) ValidatorFunc {
 	val := GuessValidator(hashed)
-	return func(password string) error {
+
+	f := func(password string) error {
 		if val == nil {
 			return NewUnknownAlgError()
 		}
 		return val.Compare(hashed, password)
 	}
+
+	return SecureValidatorFunc(f)
 }
 
 const (
@@ -279,4 +284,65 @@ func Argon2iHashSize(keyLen int) int {
 func Argon2idHashSize(keyLen int) int {
 	// +1 because of additional d in algorithm id
 	return Argon2iHashSize(keyLen) + 1
+}
+
+// Generate wraps a call to h.Generate and recovers from any panic that might
+// occur, it's advised to always use Generate instead of using the hasher
+// directly. h is not allowed to be nil.
+func Generate(h Hasher, password string) (res []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errStr := fmt.Sprint("gopherbounce: recovered from unexpected panic in Generate, please report bug! ", r)
+			log.Println(errStr)
+			err = errors.New(errStr)
+		}
+	}()
+	if h == nil {
+		err = errors.New("got nil hasher in Generate")
+	} else {
+		res, err = h.Generate(password)
+	}
+	return
+}
+
+// Compare wraps a call to v.Compare(hashed, password) and recovers from any
+// panic that might occur, it's advised to always use Compare instead of using
+// the validator directly. v is not allowed to be nil.
+func Compare(v Validator, hashed []byte, password string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errStr := fmt.Sprint("gopherbounce: recovered from unexpected panic in Validate, please report bug! ", r)
+			log.Println(errStr)
+			err = errors.New(errStr)
+		}
+	}()
+	if v == nil {
+		err = errors.New("got nil validator in Validate")
+	} else {
+		err = v.Compare(hashed, password)
+	}
+	return
+}
+
+// SecureValidatorFunc wraps a call to f(password) and recovers from any
+// panic that might occur, it's advised to always use SecureValidatorFunc
+// if dealing with raw validator functions. But validator functions
+// retrieved from GuessValidatorFunc are already wrapped by SecureValidatorFunc.
+// f is not allowed to be nil.
+func SecureValidatorFunc(f ValidatorFunc) ValidatorFunc {
+	return func(password string) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				errStr := fmt.Sprint("gopherbounce: recovered from unexpected panic in validator func, please report bug! ", r)
+				log.Println(errStr)
+				err = errors.New(errStr)
+			}
+		}()
+		if f == nil {
+			err = errors.New("got nil validator func in SecureValidatorFunc")
+		} else {
+			err = f(password)
+		}
+		return
+	}
 }

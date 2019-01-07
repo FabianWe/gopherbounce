@@ -15,29 +15,29 @@
 package main
 
 import (
-  "fmt"
+	"fmt"
 
-  "github.com/FabianWe/gopherbounce"
+	"github.com/FabianWe/gopherbounce"
 )
 
 func main() {
-  password := "foobar"
-  hashed, hashErr := gopherbounce.DefaultHasher.Generate(password)
-  if hashErr != nil {
-    panic(hashErr)
-  }
-  fmt.Println("Hashed password:", string(hashed))
-  validator := gopherbounce.GuessValidatorFunc(hashed)
-  okay := validator("foobar")
-  if okay == nil {
-    fmt.Println("Password correct")
-  } else {
-    fmt.Println("Password wrong")
-  }
-  okay = validator("eggs")
-  if okay == nil {
-    fmt.Println("Password correct")
-  } else {
-    fmt.Println("Password wrong")
-  }
+	password := "foobar"
+	hashed, hashErr := gopherbounce.Generate(gopherbounce.DefaultHasher, password)
+	if hashErr != nil {
+		panic(hashErr)
+	}
+	fmt.Println("Hashed password:", string(hashed))
+	validator := gopherbounce.GuessValidatorFunc(hashed)
+	okay := validator("foobar")
+	if okay == nil {
+		fmt.Println("Password correct")
+	} else {
+		fmt.Println("Password wrong")
+	}
+	okay = validator("eggs")
+	if okay == nil {
+		fmt.Println("Password correct")
+	} else {
+		fmt.Println("Password wrong")
+	}
 }
