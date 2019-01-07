@@ -35,6 +35,20 @@ hasher.KeyLen = 32
 For all parameters check the code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce). A list of default parameters can be found below.
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
 
+### Hasher parsing
+Instead of creating your hasher in your source code you can also load a config file. The syntax is explained in more detail in the Constraints section below. A config file looks like this:
+
+```
+[argon2id]
+time = 3
+KeyLen = 32
+```
+A list of the algorithm parameters can be found in the Parameters section. This will parse an argon2id hasher with time set to 3 and keylen set to 32. All other parameters of the algorithm are set to their default values. But usually you would define them all in a config file.
+
+You can parse configs with [ParseHasher](https://godoc.org/github.com/FabianWe/gopherbounce#ParseHasher) or [ParseHasherConfFile](https://godoc.org/github.com/FabianWe/gopherbounce#ParseHasherConfFile).
+
+Your current hasher settings can be written to such a config file with [WriteHasherConf](https://godoc.org/github.com/FabianWe/gopherbounce#WriteHasherConf).
+
 ## Which hash function should I use?
 bcrypt, scrypt and argon2id should all be fine. bcrypt is very often used and should be fine. Argon2id is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. So it's not very old and not in use for a long time (like bcrypt), thus has received less scrutiny. argon2id is the default in this package though, I like how argon2id scales even for further hardware improvements.
 So in short: bcrypt is fine and often used and thus battle-tested. argon2id seems very good and scales nicely. scrypt should be fine as well, argon2i should not be used, in constrast to argon2id. argon2id has the big advantage that it scales nicely (with both time and memory).
@@ -56,7 +70,7 @@ There are some basic rules on how to store user passwords. I'm not a security ex
 6. All implemented algorithms compute a cryptographically secure salt and include this salt in the encoding
 7. If you ever have to compare raw keys by yourself, never compare them by iterating over all entries. Always use a constant time compare function such as [subtle/ConstantTimeCompare](https://golang.org/pkg/crypto/subtle/#ConstantTimeCompare)
 
-## Default Parameters
+## Parameters
 This section describes the current default parameter values of the hashers. The cost parameters are rather high compared to the proposed defaults of the algorithms. Since the documentations are usually some years old I think it's a good idea to increase the parameters. I've tried to reach 241ms computation time for each hash computation.
 
 ### bcrypt
@@ -170,7 +184,7 @@ multi.ScryptConstraint = s
  - Multiple `Constraint`s can be combined in a [disjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintDisjunction) or [conjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintConjunction).
  - Note that whenever we use a conjunction ([ConstraintConjunction](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintConjunction) or one of the algorithm specific accumulators) the empty conjunction always returns true.
 ### Parsing constraints
-You can also parse constraints from a file (or any reader) with [ParseConstraints](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraints) or [ParseConstraintsFromFile](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraintsFromFile). Here is a small example (the values must not really make sense, it's just a syntax example):
+You can also parse constraints from a file (or any reader) with [ParseConstraints](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraints) or [ParseConstraintsFromFile](https://godoc.org/github.com/FabianWe/gopherbounce#ParseConstraintsFromFile). Valid parameters for the algorithms are described in the Parameters section. Here is a small example (the values must not really make sense, it's just a syntax example):
 ```
 [bcrypt]
 Cost < 12

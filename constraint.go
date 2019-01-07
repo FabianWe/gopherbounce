@@ -63,9 +63,9 @@ func (rel BinRelation) String() string {
 	case Greater:
 		return ">"
 	case Leq:
-		return "≤"
+		return "<="
 	case Geq:
-		return "≥"
+		return ">="
 	case Eq:
 		return "="
 	default:

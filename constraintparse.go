@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ConstraintSyntaxError is an error returned if an error occurred due to
@@ -231,6 +232,107 @@ func NewConstraintCol() *ConstraintsCol {
 	return &ConstraintsCol{}
 }
 
+// WriteConstraints writes all constraints to a file. The output is a file
+// that can be parsed by ParseConstraints.
+// If printTime is true a timestamp will be added as a comment to the output
+// specifying the time the config file was created.
+func (col *ConstraintsCol) WriteConstraints(w io.Writer, printTime bool) (int, error) {
+	res := 0
+
+	var n int
+	var err error
+
+	if printTime {
+		now := time.Now()
+		nowFormat := now.Format(time.RFC1123)
+		n, err = fmt.Fprintf(w, "# Created on %s\n\n", nowFormat)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	// first write all algorithms that should be completely ignored
+	for _, alg := range col.AlgConstraints {
+		var algName string
+		switch alg {
+		case BcryptAlg:
+			algName = "bcrypt"
+		case ScryptAlg:
+			algName = "scrypt"
+		case Argon2iAlg:
+			algName = "argon2i"
+		case Argon2idAlg:
+			algName = "argon2id"
+		default:
+			return res, fmt.Errorf("Invalid algorithm %d", alg)
+		}
+		n, err = fmt.Fprint(w, "ignore ", algName, "\n\n")
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	if len(col.BcryptConstraints) > 0 {
+		n, err = WriteBcryptConstraints(w, col.BcryptConstraints)
+		res += n
+		if err != nil {
+			return res, err
+		}
+		// don't forget an extra blank line
+		n, err = fmt.Fprintln(w)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	if len(col.ScryptConstraints) > 0 {
+		n, err = WriteScryptConstraints(w, col.ScryptConstraints)
+		res += n
+		if err != nil {
+			return res, err
+		}
+		// don't forget an extra blank line
+		n, err = fmt.Fprintln(w)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	if len(col.Argon2iConstraints) > 0 {
+		n, err = WriteArgon2iConstraints(w, col.Argon2iConstraints)
+		res += n
+		if err != nil {
+			return res, err
+		}
+		// don't forget an extra blank line
+		n, err = fmt.Fprintln(w)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	if len(col.Argon2idConstraints) > 0 {
+		n, err = WriteArgon2idConstraints(w, col.Argon2idConstraints)
+		res += n
+		if err != nil {
+			return res, err
+		}
+		// don't forget an extra blank line
+		n, err = fmt.Fprintln(w)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}
+
 // ParseConstraints parses all constraints from a reader, see the README for
 // more details.
 func ParseConstraints(r io.Reader) (*ConstraintsCol, error) {
@@ -338,4 +440,80 @@ func ParseConstraintsFromFile(filename string) (*ConstraintsCol, error) {
 	}
 	defer f.Close()
 	return ParseConstraints(f)
+}
+
+// WriteBcryptConstraints writes all constraints to a file s.t. they can
+// be parsed again later.
+func WriteBcryptConstraints(w io.Writer, cs []BcryptConstraint) (int, error) {
+	res := 0
+
+	n, err := fmt.Fprintln(w, "[bcrypt]")
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	for _, c := range cs {
+		n, err = fmt.Fprintf(w, "%s %s %d\n", "Cost", c.Rel, c.CostBound)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}
+
+// WriteScryptConstraints writes all constraints to a file s.t. they can
+// be parsed again later.
+func WriteScryptConstraints(w io.Writer, cs []ScryptConstraint) (int, error) {
+	res := 0
+
+	n, err := fmt.Fprintln(w, "[scrypt]")
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	for _, c := range cs {
+		n, err = fmt.Fprintf(w, "%s %s %d\n", c.VarName, c.Rel, c.Bound)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}
+
+func writeArgon2Constraints(w io.Writer, alg string, cs []Argon2Constraint) (int, error) {
+	res := 0
+
+	n, err := fmt.Fprintf(w, "[%s]\n", alg)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	for _, c := range cs {
+		n, err = fmt.Fprintf(w, "%s %s %d\n", c.VarName, c.Rel, c.Bound)
+		res += n
+		if err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}
+
+// WriteArgon2iConstraints writes all constraints to a file s.t. they can
+// be parsed again later.
+func WriteArgon2iConstraints(w io.Writer, cs []Argon2Constraint) (int, error) {
+	return writeArgon2Constraints(w, "argon2i", cs)
+}
+
+// WriteArgon2idConstraints writes all constraints to a file s.t. they can
+// be parsed again later.
+func WriteArgon2idConstraints(w io.Writer, cs []Argon2Constraint) (int, error) {
+	return writeArgon2Constraints(w, "argon2id", cs)
 }

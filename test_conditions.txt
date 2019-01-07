@@ -1,5 +1,5 @@
 [bcrypt]
-Cost < 12
+Cost = 12
 
 [scrypt = foo]
 KeyLen < 12
