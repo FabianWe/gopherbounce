@@ -72,7 +72,7 @@ func TuneBcrypt(base *BcryptConf, duration time.Duration) (*BcryptConf, time.Dur
 		hasher.Cost = cost
 		// run average
 		f := func() error {
-			_, err := hasher.Generate(dummyPassword)
+			_, err := Generate(hasher, dummyPassword)
 			return err
 		}
 		avg, avgErr := average(f, defaultPasses, defaultNumber)
@@ -99,7 +99,7 @@ func TuneScrypt(base *ScryptConf, duration time.Duration) (*ScryptConf, time.Dur
 	for Pow(2, int64(rounds)) > 0 {
 		hasher.SetRounds(rounds)
 		f := func() error {
-			_, err := hasher.Generate(dummyPassword)
+			_, err := Generate(hasher, dummyPassword)
 			return err
 		}
 		avg, avgErr := average(f, defaultPasses, defaultNumber)
@@ -130,7 +130,7 @@ func TuneArgon2i(base *Argon2iConf, duration time.Duration) (*Argon2iConf, time.
 	for t >= 3 {
 		hasher.Time = t
 		f := func() error {
-			_, err := hasher.Generate(dummyPassword)
+			_, err := Generate(hasher, dummyPassword)
 			return err
 		}
 		avg, avgErr := average(f, defaultPasses, defaultNumber)
@@ -161,7 +161,7 @@ func TuneArgon2id(base *Argon2idConf, duration time.Duration) (*Argon2idConf, ti
 	for t >= 3 {
 		hasher.Time = t
 		f := func() error {
-			_, err := hasher.Generate(dummyPassword)
+			_, err := Generate(hasher, dummyPassword)
 			return err
 		}
 		avg, avgErr := average(f, defaultPasses, defaultNumber)

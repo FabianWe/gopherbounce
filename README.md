@@ -11,7 +11,7 @@ The easiest way: `go get -u github.com/FabianWe/gopherbounce`.
 The following example demonstrates how to use this library in the most easy way. It first creates the password hash of the clear text password and then compares it with another clear text password. Just create the string variables `password` and `testPassword`. A runnable example can be found in [quick.go](https://github.com/FabianWe/gopherbounce/blob/master/cmd/quick/quick.go)
 
 ```go
-hashed, hashErr := gopherbounce.DefaultHasher.Generate(password)
+hashed, hashErr := gopherbounce.Generate(gopherbounce.DefaultHasher, password)
 if hashErr != nil {
   panic(hashErr)
 }
@@ -26,6 +26,8 @@ if okay == nil {
 ```
 A more elaborate example exists in [play.go](https://github.com/FabianWe/gopherbounce/blob/master/cmd/play/play.go)
 
+**NOTE:** Password hashing is a security sensitive part of your program! Be sure to read the foll doc!
+
 ## Using different hash / key functions
 There are three algorithms implemented. Each algorithm implements the [Hasher](https://godoc.org/github.com/FabianWe/gopherbounce#Hasher) interface. Implemented algorithms currently include [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id). Each of them has an implementation wrapping it, for example [ScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptHasher).  These hashers can be created with an algorithm specific config ([NewScryptHasher](https://godoc.org/github.com/FabianWe/gopherbounce#NewScryptHasher) with a [ScryptConf](https://godoc.org/github.com/FabianWe/gopherbounce#ScryptConf)). The New functions usually accept `nil` and create some sane defaults. Change those values only if you know what you're doing! For example: `ScryptHasher` by default creates keys and salts of length 64. If you want a length of 32 you can do:
 ```go
@@ -34,6 +36,9 @@ hasher.KeyLen = 32
 ```
 For all parameters check the code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce). A list of default parameters can be found below.
 There are instances of all [Hashers with sane default parameters](https://godoc.org/github.com/FabianWe/gopherbounce#pkg-variables): `gopherbounce.Bcrypt`, `gopherbounce.Scrypt`, `gopherbounce.Argon2i` and `gopherbounce.Argon2id`. You can use these hashers without creating new Hasher instances by yourself. There is also a `gopherbounce.DefaultHasher` which can be used if you have no idea which algorithm you should use. The current default hasher is [argon2id](https://en.wikipedia.org/wiki/Argon2). Argon2 is the winner of the [Password Hashing Competition](https://en.wikipedia.org/wiki/Password_Hashing_Competition) in July 2015. You should never change the parameters of these default hashers, that could be confusing. Instead use their `Copy` functions or create new ones with `nil` as the conf parameter as shown above.
+
+### Note on using hashers
+Instead of calling `yourHasher.Generate(password)` you should instead use [gopherbounce.Generate(yourHasher, password)](https://godoc.org/github.com/FabianWe/gopherbounce#Generate). This function recovers from all panics. Of course hashers should not panic, but return errors instead. But because password hashing is crucial I think it's best to wrap all hasher calls. This same is true for validators (below) whose calls should always be wrapped by a call to [gopherbounce.Compare](https://godoc.org/github.com/FabianWe/gopherbounce#Compare).
 
 ### Hasher parsing
 Instead of creating your hasher in your source code you can also load a config file. The syntax is explained in more detail in the Constraints section below. A config file looks like this:
@@ -56,22 +61,26 @@ So in short: bcrypt is fine and often used and thus battle-tested. argon2id seem
 ## Validating hashes
 The easiest way to validate hashes is to use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator). They both accept the hashed version of a password and return either a function that can compare passwords with the hashed entry or a [Validator](https://godoc.org/github.com/FabianWe/gopherbounce#Validator) object. See the documentation for more details.
 
+**NOTE:** You should **not** use a validator (like from `GuessValidator`) directly. Instead of calling `yourValidator.Compare(hashed, password)` you should wrap your calls with [gopherbounce.Compare(yourValidator, hashed, password)](https://godoc.org/github.com/FabianWe/gopherbounce#Compare). The reason is the same as for wrapping your hasher calls: The wrapper recovers from any unexpected panics.
+
+[GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) always wraps the validator function with something similar: [SecureValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#SecureValidatorFunc). So there's no need to wrap a function retrieved from `GuessValidatorFunc`.
+
 ## Parsing hashes
 The password hashes are encoded in a single string and there are functions to parse these hash strings. For example scrypt may produce the following string: ` $scrypt$ln=17,r=8,p=1$iDXJYV9jfWJVxmT7WxJvQ36G+gstxkYaapud/VfyZNs$Fknczp5AEqM6AwehE6D6VtV2lk/6gUNHM311ICEMkrE`. This contains all parameters as well as the key and salt (encoded with base64). This string can be parsed with [ParseScryptData](https://godoc.org/github.com/FabianWe/gopherbounce#ParseScryptData). Similar functions exist for other hashers as well. This is exactly what is done by the Validator implementations by the way.
 
 ## How to embed into an application
 There are some basic rules on how to store user passwords. I'm not a security expert, that should be said for the whole library! I did my best to make everything secure, but that's not a promise! So here's a short recap on how to deal with passwords:
 
- 1. Never store the password in clear text, always store hashed versions (as computed by a Hasher)
+ 1. Never store the password in clear text, always store hashed versions. Compute the hashed version with [Generate(yourHasher, password)](https://godoc.org/github.com/FabianWe/gopherbounce#Generate)
  2. Store these hashes in a database or in a file. Hashers return `[]byte` and these can be converted to a `string` with `string(hashed)`
- 3. When a user tries to login: Retrieve the stored hashed string, use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator) to compare the hashed version with a clear text password
+ 3. When a user tries to login: Retrieve the stored hashed string, use [GuessValidatorFunc](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidatorFunc) or [Compare(yourValidator, hashed, password)](https://godoc.org/github.com/FabianWe/gopherbounce#Compare) in combination with [GuessValidator](https://godoc.org/github.com/FabianWe/gopherbounce#GuessValidator) to compare the hashed version with a clear text password
  4. Only if the returned error is `nil` accept the password. If any error is returned (no matter which one) assume that the login failed. Check the different errors in the documentation for more details
 5. Use a minimum password length that is always checked on the server-side in web applications
 6. All implemented algorithms compute a cryptographically secure salt and include this salt in the encoding
 7. If you ever have to compare raw keys by yourself, never compare them by iterating over all entries. Always use a constant time compare function such as [subtle/ConstantTimeCompare](https://golang.org/pkg/crypto/subtle/#ConstantTimeCompare)
 
 ## Parameters
-This section describes the current default parameter values of the hashers. The cost parameters are rather high compared to the proposed defaults of the algorithms. Since the documentations are usually some years old I think it's a good idea to increase the parameters. I've tried to reach 241ms computation time for each hash computation.
+This section describes the parameter values of the hashers as well as their defaults. The cost parameters are rather high compared to the proposed defaults of the algorithms. Since the documentations are usually some years old I think it's a good idea to increase the parameters. I've tried to reach 241ms computation time for each hash computation.
 
 ### bcrypt
 Read details in the [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt) documentation.
@@ -206,6 +215,8 @@ KeyLen = 32
 As you can see there are different blocks and constraints for that block. For example "[scrypt]" followed by constraints for scrypt. Blocks must be separated by  at least one blank line. Instead of a line of the form "[ALG]" a line of the form "ignore ALG" is accepted, for example "ignore bcrypt". The meaning is that bcrypt should be ignored completely.  This function returns all parsed constraints in form of the collection type [ConstraintsCol](https://godoc.org/github.com/FabianWe/gopherbounce#ConstraintsCol). The form "[argon2i = bar]" is a named block. Though this is syntactically correct the names are ignored by the parse method.
 
 Whatever you do with the result: The bcrypt constraint "Cost < 12" should be useless because "ignore bcrypt" completely ignores bcrypt. Again, just a syntax example.
+
+You can also write these constraints to a file with [WriteHasherConf](WriteConstraintshttps://godoc.org/github.com/FabianWe/gopherbounce#WriteHasherConf).
 
 The workflow with constraints should be as follows:
 

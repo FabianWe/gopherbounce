@@ -219,6 +219,9 @@ type ValidatorFunc func(password string) error
 // The returned error is compatible with the Validator interface specification.
 // In addition it might return an UnknownAlgError if the algorithm cannot be
 // guessed from the hashed version.
+//
+// The returned function gets wrapped by SecureValidatorFunc, so calling
+// SecureValidatorFunc on the function is not required.
 func GuessValidatorFunc(hashed []byte) ValidatorFunc {
 	val := GuessValidator(hashed)
 

@@ -56,7 +56,7 @@ func main() {
 
 	fmt.Printf("\n%s\n", strings.Repeat("#", 20))
 
-	fmt.Println("Now verify your password with all hashers!")
+	fmt.Println("Now verify your password with all validators!")
 	check := readPassword()
 	for i := 0; i < len(hashers); i++ {
 		validator := validators[i]
@@ -85,7 +85,7 @@ func main() {
 
 	fmt.Printf("\n%s\n", strings.Repeat("#", 20))
 
-	fmt.Println("Now verify password with method detection")
+	fmt.Println("Now verify password with a validator function")
 	for _, hash := range hashes {
 		start := time.Now()
 		f := gopherbounce.GuessValidatorFunc(hash)
