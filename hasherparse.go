@@ -77,7 +77,7 @@ func ParseHasher(r io.Reader) (Hasher, error) {
 		} else {
 			// algorithm has been parsed, check which one it is
 			switch h := res.(type) {
-			case BcryptHasher:
+			case *BcryptHasher:
 				c, cErr := ParseBcryptCons(line)
 				if cErr != nil {
 					return nil, cErr
@@ -150,4 +150,13 @@ func ParseHasherConfFile(path string) (Hasher, error) {
 	}
 	defer f.Close()
 	return ParseHasher(f)
+}
+
+func WriteHasherConfig(w io.Writer, hasher Hasher) (int, error) {
+	if hasher == nil {
+		return 0, errors.New("Can't write nil hasher")
+	}
+	res := 0
+
+	return res, nil
 }

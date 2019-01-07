@@ -44,21 +44,21 @@ type BcryptHasher struct {
 }
 
 // NewBcryptHasher returns a new BcryptHasher with the given parameters.
-func NewBcryptHasher(conf *BcryptConf) BcryptHasher {
+func NewBcryptHasher(conf *BcryptConf) *BcryptHasher {
 	if conf == nil {
 		conf = DefaultBcryptConf.Copy()
 	}
-	return BcryptHasher{conf}
+	return &BcryptHasher{conf}
 }
 
 // Copy returns a copy of the hasher.
-func (h BcryptHasher) Copy() BcryptHasher {
+func (h *BcryptHasher) Copy() BcryptHasher {
 	return BcryptHasher{h.BcryptConf.Copy()}
 }
 
 // Generate implements the Hasher interface. All errors returned are from
 // golang.org/x/crypto/bcrypt.
-func (h BcryptHasher) Generate(password string) ([]byte, error) {
+func (h *BcryptHasher) Generate(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), h.Cost)
 }
 
@@ -72,7 +72,7 @@ func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 }
 
 // BcryptValidator implements Validator for bcrypt hashes.
-type BcryptValidator struct {}
+type BcryptValidator struct{}
 
 // Compare implements the Validator interface for bcrypt hashes.
 func (v BcryptValidator) Compare(hashed []byte, password string) error {
