@@ -169,7 +169,7 @@ func ParseScryptCons(line string) (ScryptConstraint, error) {
 	case "keylen", "len":
 		return NewScryptConstraint(bound64, "keylen", rel), nil
 	default:
-		return ScryptConstraint{}, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be N, R, P or KeyLen, got %s", lhs))
+		return ScryptConstraint{}, NewConstraintSyntaxError(fmt.Sprintf("Invalid left-hand side of relation, must be N, rounds, R, P or KeyLen, got %s", lhs))
 	}
 }
 
