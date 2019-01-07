@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -38,6 +39,8 @@ func main() {
 
 	for i, hasher := range hashers {
 		fmt.Println("Building hash with", reflect.TypeOf(hasher))
+		fmt.Println("Hasher config:")
+		gopherbounce.WriteHasherConf(os.Stdout, hasher)
 		start := time.Now()
 		hash, err := hasher.Generate(password)
 		execTime := time.Since(start)

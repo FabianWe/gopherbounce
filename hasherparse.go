@@ -132,7 +132,7 @@ func ParseHasher(r io.Reader) (Hasher, error) {
 					return nil, err
 				}
 			default:
-				return nil, errors.New("Internal error in ParseHasher: Invalid hasher type found")
+				return nil, errors.New("Invalid hasher type in ParseHasher")
 			}
 		}
 	}
@@ -152,11 +152,108 @@ func ParseHasherConfFile(path string) (Hasher, error) {
 	return ParseHasher(f)
 }
 
-func WriteHasherConfig(w io.Writer, hasher Hasher) (int, error) {
+func writeBcryptConf(w io.Writer, h *BcryptHasher) (int, error) {
+	res := 0
+	n, err := fmt.Fprintln(w, "[bcrypt]")
+	res += n
+	if err != nil {
+		return res, err
+	}
+	n, err = fmt.Fprintf(w, "cost = %d\n", h.Cost)
+	res += n
+	if err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
+func writeScryptConf(w io.Writer, h *ScryptHasher) (int, error) {
+	res := 0
+	n, err := fmt.Fprintln(w, "[scrypt]")
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "rounds = %d\n", h.GetRounds())
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "R = %d\n", h.R)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "P = %d\n", h.P)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "KeyLen = %d\n", h.KeyLen)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func writeArgon2Conf(w io.Writer, alg string, h *Argon2Conf) (int, error) {
+	res := 0
+
+	n, err := fmt.Fprintf(w, "[%s]\n", alg)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "Time = %d\n", h.Time)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "Memory = %d\n", h.Memory)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "Threads = %d\n", h.Threads)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	n, err = fmt.Fprintf(w, "KeyLen = %d\n", h.KeyLen)
+	res += n
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+// WriteHasherConf writes the config of a hasher in a format that can be read
+// by ParseHasher.
+func WriteHasherConf(w io.Writer, hasher Hasher) (int, error) {
 	if hasher == nil {
 		return 0, errors.New("Can't write nil hasher")
 	}
-	res := 0
-
-	return res, nil
+	switch h := hasher.(type) {
+	case *BcryptHasher:
+		return writeBcryptConf(w, h)
+	case *ScryptHasher:
+		return writeScryptConf(w, h)
+	case *Argon2iHasher:
+		return writeArgon2Conf(w, "argon2i", h.Argon2Conf)
+	case *Argon2idHasher:
+		return writeArgon2Conf(w, "argon2id", h.Argon2Conf)
+	default:
+		return 0, errors.New("Invalid hasher type in WriteHasherConf")
+	}
 }
