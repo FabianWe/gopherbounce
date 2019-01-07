@@ -334,7 +334,8 @@ L:
 func ParseConstraintsFromFile(filename string) (*ConstraintsCol, error) {
 	f, openErr := os.Open(filename)
 	if openErr != nil {
-		defer f.Close()
+		return nil, openErr
 	}
+	defer f.Close()
 	return ParseConstraints(f)
 }
