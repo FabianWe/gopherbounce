@@ -1,4 +1,4 @@
-// Copyright 2018 Fabian Wenzelmann
+// Copyright 2018 - 2019 Fabian Wenzelmann
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,12 +75,12 @@ type HashGenerator interface {
 
 // Validator is an interface that provides a method to compare a hashed version
 // of a password with a prorivde clear text version. Any error returned should
-// be considered as an authentication fail. Only a nil return value.indicates
+// be considered as an authentication fail. Only a nil return value indicates
 // success.
 //
 // There are some predefined errors that can help you to narrow the cause.
 // But not all implementaions are required to use these errors.
-// Special errors include: Syntax error if the hases version can't be parsed.
+// Special errors include: Syntax error if the hashes version can't be parsed.
 // VersionError: IF the version used to created the hashes value is not
 // compatible with the implemented algorithm.
 // AlgIDError: The provided algorithm prefix does not match the prefix required
@@ -210,12 +210,12 @@ func GuessValidator(hashed []byte) Validator {
 	}
 }
 
-// ValidatorFunc is a function that returns an error is specified in the
+// ValidatorFunc is a function that returns an error as specified in the
 // Validator interface. GuessValidatorFunc can be used to create a ValidatorFunc
 // from the hashed version of a password.
 type ValidatorFunc func(password string) error
 
-// GuessValidatorFunc guesses the algorithm based on the hashes version.
+// GuessValidatorFunc guesses the algorithm based on the hashe's version.
 // The returned error is compatible with the Validator interface specification.
 // In addition it might return an UnknownAlgError if the algorithm cannot be
 // guessed from the hashed version.
@@ -236,7 +236,7 @@ func GuessValidatorFunc(hashed []byte) ValidatorFunc {
 }
 
 const (
-	// MaxIntLength is the maximal length that we assume to an integer encoding
+	// MaxIntLength is the maximal length that we assume an integer encoding
 	// as a string can have.
 	MaxIntLength = 20
 )
@@ -245,8 +245,6 @@ const (
 func BcryptHashSize() int {
 	return 60
 }
-
-// TODO use len of prefixes?
 
 // SycryptHashSize returns the maximal hash size of a scrypt hash with a key and
 // salt of with KeyLen bytes. The length is the maximal length, not the actual

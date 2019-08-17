@@ -62,7 +62,7 @@ func (err VersionError) String() string {
 	return err.Error()
 }
 
-// AlgIDError is returned if the hashes version has the wrong prefix for a
+// AlgIDError is returned if a hash version has the wrong prefix for a
 // certain Validator. This does not mean that the hashes version is invalid
 // in general, only for the specific Validator.
 type AlgIDError struct {
