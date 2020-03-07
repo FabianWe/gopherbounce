@@ -1,3 +1,8 @@
+# The gopherbounce project
+This package is but a small part of the gopherbounce project.
+This package implements only a very small part of the capabilities.
+For the documentation on how to use the gopherbounce project please refer to the wiki.
+
 # gopherbounce
 gopherbounce is a Golang authentication framework. It bundles [bcrypt](https://godoc.org/golang.org/x/crypto/bcrypt), [scrypt](https://godoc.org/golang.org/x/crypto/scrypt) and [argon2](https://godoc.org/golang.org/x/crypto/argon2) (argon2i and argon2id) under a common interface. It provides easy to use functions for hashing and validating passwords.
 Find the full code documentation on [GoDoc](https://godoc.org/github.com/FabianWe/gopherbounce).
