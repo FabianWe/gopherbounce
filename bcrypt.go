@@ -30,7 +30,7 @@ func (conf *BcryptConf) Copy() *BcryptConf {
 	return &BcryptConf{Cost: conf.Cost}
 }
 
-// String returns a human-readable string reprensetation.
+// String returns a human-readable string representation.
 func (conf *BcryptConf) String() string {
 	return fmt.Sprintf("&{Cost: %d}", conf.Cost)
 }
@@ -62,7 +62,7 @@ func (h *BcryptHasher) Generate(password string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(password), h.Cost)
 }
 
-// ParseBcryptConf parses a configuration from a hashes version.
+// ParseBcryptConf parses a configuration from a hashed version.
 func ParseBcryptConf(hashed []byte) (*BcryptConf, error) {
 	cost, costErr := bcrypt.Cost(hashed)
 	if costErr != nil {

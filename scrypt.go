@@ -1,4 +1,4 @@
-// Copyright 2018, 2019 Fabian Wenzelmann
+// Copyright 2018 - 2020 Fabian Wenzelmann
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -122,7 +122,6 @@ func (h *ScryptHasher) Generate(password string) ([]byte, error) {
 	}
 	// encode salt and key with base64
 	saltEnc, keyEnc := Base64Encode(salt), Base64Encode(key)
-	// result := fmt.Sprintf("$4s$%s$%d$%d$%d$%s", saltEnc, h.N, h.R, h.P, keyEnc)
 	phc := PHC{
 		ID:     "scrypt",
 		Params: []string{strconv.Itoa(h.GetRounds()), strconv.Itoa(h.R), strconv.Itoa(h.P)},

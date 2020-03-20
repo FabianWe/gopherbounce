@@ -1,4 +1,4 @@
-// Copyright 2018 - 2019 Fabian Wenzelmann
+// Copyright 2018 - 2020 Fabian Wenzelmann
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,21 +74,21 @@ type HashGenerator interface {
 }
 
 // Validator is an interface that provides a method to compare a hashed version
-// of a password with a prorivde clear text version. Any error returned should
+// of a password with a given clear text version. Any error returned should
 // be considered as an authentication fail. Only a nil return value indicates
 // success.
 //
 // There are some predefined errors that can help you to narrow the cause.
-// But not all implementaions are required to use these errors.
+// But not all implementation are required to use these errors.
 // Special errors include: Syntax error if the hashes version can't be parsed.
-// VersionError: IF the version used to created the hashes value is not
+// VersionError: If the version used to create the hashe value is not
 // compatible with the implemented algorithm.
 // AlgIDError: The provided algorithm prefix does not match the prefix required
 // by the validator.
 // PasswordMismatchError: If the clear text version is not the password used to
 // create the hash.
 //
-// Note that a valdiator implementation provides validation for a specific
+// Note that a validator implementation provides validation for a specific
 // hashing algorithm, like one implementation for bcrypt, scrypt etc.
 // If you want to validate a hashed version without knowing the used algorithm
 // use GuessValidator or GuessValidatorFunc.
@@ -156,7 +156,7 @@ const (
 	Argon2idAlg
 )
 
-// ParseAlg parses the algorithm from the algorith name.
+// ParseAlg parses the algorithm from the algorithm name.
 // Valid names are "bcrypt", "scrypt", "argon2i" and "argon2id".
 func ParseAlg(name string) (HashAlg, error) {
 	switch strings.ToLower(name) {
@@ -191,7 +191,7 @@ func GuessAlg(hashed []byte) HashAlg {
 	}
 }
 
-// GuessValidator returns a validator for the hashes version.
+// GuessValidator returns a validator for the hashed version.
 // That is a clear text password can be compared with the hashed version using
 // the validator.
 // If the algorithm is unknown it returns nil.
@@ -215,7 +215,7 @@ func GuessValidator(hashed []byte) Validator {
 // from the hashed version of a password.
 type ValidatorFunc func(password string) error
 
-// GuessValidatorFunc guesses the algorithm based on the hashe's version.
+// GuessValidatorFunc guesses the algorithm based on the hashed version.
 // The returned error is compatible with the Validator interface specification.
 // In addition it might return an UnknownAlgError if the algorithm cannot be
 // guessed from the hashed version.
